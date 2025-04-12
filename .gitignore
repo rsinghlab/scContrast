@@ -1,0 +1,24 @@
+data/
+env/
+figures/
+lightning_logs/
+pytorch.venv
+data
+
+.ipynb_checkpoints
+notes.md
+**/__pycache__/
+*.hdf5
+*.gmt
+*.loom
+*__pycache__*
+*.pyc
+main.py
+*.pkl
+*.pt
+*.ckpt
+*.png
+*.txt
+
+# tm_multi_tissue_experiments/figures
+# tm_multi_tissue_experiments/lightning_logs
