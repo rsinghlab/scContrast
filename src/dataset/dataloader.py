@@ -3,6 +3,8 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import gseapy
 import scanpy as sc
+from pathlib import Path
+
     
 class AnnDataDataset(Dataset):
     def __init__(self, adata, filter_significant_genes=False, pval_threshold=0.05, logfc_threshold=1.0):
@@ -88,22 +90,27 @@ class AnnDataDataset(Dataset):
         self.X = self.X[:, gene_indices]
 
     def _compute_gene_networks(self, pval_threshold):
-        gmt_file_path = r'./data/ontologies/m2.cp.reactome.v2024.1.Mm.symbols.gmt' # TODO: put outside
-        # gmt_file_path = r'./data/ontologies/mh.all.v2024.1.Mm.symbols.gmt'
+        try:
+            DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
-        enr = gseapy.enrichr(gene_list=self.gene_names,
-                            gene_sets=gmt_file_path,
-                            organism='Mouse',
-                            outdir=None)
-        
-        enr_results = enr.results
-        gene_networks = []
-        for i in range(len(enr_results)):
-            row = enr_results.iloc[i]
-            genes = row['Genes'].split(';')
+            gmt_file_path = DATA_DIR / 'ontologies/m2.cp.reactome.v2024.1.Mm.symbols.gmt' # TODO: put outside
+            # gmt_file_path = r'./data/ontologies/mh.all.v2024.1.Mm.symbols.gmt'
 
-            gene_set_intersection = list(set(self.gene_names) & set(genes))
-            gene_networks.append(gene_set_intersection)
+            enr = gseapy.enrichr(gene_list=self.gene_names,
+                                gene_sets=gmt_file_path,
+                                organism='Mouse',
+                                outdir=None)
+            
+            enr_results = enr.results
+            gene_networks = []
+            for i in range(len(enr_results)):
+                row = enr_results.iloc[i]
+                genes = row['Genes'].split(';')
+
+                gene_set_intersection = list(set(self.gene_names) & set(genes))
+                gene_networks.append(gene_set_intersection)
+        except:
+            gene_networks = []
         
         return gene_networks
 
