@@ -10,13 +10,25 @@ class scRNASeqEncoder(pl.LightningModule):
     def __init__(self, PARAMETERS):
         super().__init__()
         self.encoder = nn.Sequential(
-            nn.Linear(PARAMETERS['num_genes'], 256),
+            ## for some reason, the first layer needs to be 18244 to match the
+            # training data shape, it originally was 20116 but I guess something
+            # fucked up during the length normalization transition
+            nn.Linear(18244, 256),
             nn.BatchNorm1d(256),  # Batch Normalization
             nn.ReLU(),
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),  # Batch Normalization
             nn.ReLU(),
             nn.Linear(128, PARAMETERS['latent_dimension'])
+
+            
+            # nn.Linear(PARAMETERS['num_genes'], 256),
+            # nn.BatchNorm1d(256),  # Batch Normalization
+            # nn.ReLU(),
+            # nn.Linear(256, 128),
+            # nn.BatchNorm1d(128),  # Batch Normalization
+            # nn.ReLU(),
+            # nn.Linear(128, PARAMETERS['latent_dimension'])
         )
 
     def forward(self, x):

@@ -79,10 +79,10 @@ def load_tabula_muris_data():
     Adjust paths or file names as needed.
     """
     # Example paths (change to your naming as needed)
-    tm_dataset_path = data_dir / "pickled" / "tabula_muris" / f"tm_dataset_train_tissues_{VERSION}.pkl"
-    tm_dataloader_path = data_dir / "pickled" / "tabula_muris" / f"tm_dataloader_train_tissues_{VERSION}.pkl"
-    tm_adata_train_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_train_{VERSION}.pkl"
-    tm_adata_test_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_test_{VERSION}.pkl"
+    tm_dataset_path = data_dir / "pickled" / "tabula_muris" / f"tm_dataset_train_tissues_length_normalized_{VERSION}.pkl"
+    tm_dataloader_path = data_dir / "pickled" / "tabula_muris" / f"tm_dataloader_train_tissues_length_normalized_{VERSION}.pkl"
+    tm_adata_train_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_train_length_normalized_{VERSION}.pkl"
+    tm_adata_test_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_test_length_normalized_{VERSION}.pkl"
 
     with open(tm_dataset_path, "rb") as f:
         tm_dataset = pickle.load(f)
@@ -105,6 +105,8 @@ def load_tabula_muris_data():
 # 9. Main (Run Tuning)
 # -------------------------
 if __name__ == "__main__":
+    print("running in main")
+    
     # 0) Setup
     PARAMETERS["num_genes"] = num_genes
     torch.set_float32_matmul_precision("medium")
@@ -130,8 +132,8 @@ if __name__ == "__main__":
     )
 
     precomputed_dir = data_dir / 'pickled' / 'tabula_muris' / 'precomputed'
-    precomputed_gene_clusters_path =  precomputed_dir / f'tm_dataset_train_tissues_{VERSION}_precomputed_gene_clusters.pkl'
-    precomputed_mu_sigma_path = precomputed_dir / f'tm_dataset_train_tissues_{VERSION}_precomputed_mu_sigma.pkl'
+    precomputed_gene_clusters_path =  precomputed_dir / f'tm_dataset_train_tissues_length_normalized_{VERSION}_precomputed_gene_clusters.pkl'
+    precomputed_mu_sigma_path = precomputed_dir / f'tm_dataset_train_tissues_length_normalized_{VERSION}_precomputed_mu_sigma.pkl'
 
     with open(precomputed_gene_clusters_path, 'rb') as f:
         precomputed_gene_clusters = pickle.load(f)
@@ -240,6 +242,7 @@ if __name__ == "__main__":
     final_trainer = Trainer(
         max_epochs=PARAMETERS["num_epochs"],
         devices=-1,
+        accelerator="gpu",
         strategy="ddp",
         precision="bf16-mixed",
         # callbacks=[early_stop, checkpoint_callback],
