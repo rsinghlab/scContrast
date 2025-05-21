@@ -10,10 +10,7 @@ class scRNASeqEncoder(pl.LightningModule):
     def __init__(self, PARAMETERS):
         super().__init__()
         self.encoder = nn.Sequential(
-            ## for some reason, the first layer needs to be 18244 to match the
-            # training data shape, it originally was 20116 but I guess something
-            # fucked up during the length normalization transition
-            nn.Linear(18244, 256),
+            nn.Linear(PARAMETERS['num_genes'], 512),
             nn.BatchNorm1d(256),  # Batch Normalization
             nn.ReLU(),
             nn.Linear(256, 128),
@@ -21,7 +18,7 @@ class scRNASeqEncoder(pl.LightningModule):
             nn.ReLU(),
             nn.Linear(128, PARAMETERS['latent_dimension'])
 
-            
+
             # nn.Linear(PARAMETERS['num_genes'], 256),
             # nn.BatchNorm1d(256),  # Batch Normalization
             # nn.ReLU(),
@@ -485,6 +482,21 @@ class scRNASeqE_VICReg(pl.LightningModule):
             eps=eps
         )
 
+
+
+
+
+        ## using similarity loss now!
+        self.similarity_loss = FullSimilarityMatrixLoss(mode="mse")
+
+
+
+
+
+
+
+
+
         # Assign precomputed variables (used in augmentations)
         self.cell_type_mu_sigma = cell_type_mu_sigma
         self.global_mu_sigma = global_mu_sigma
@@ -552,10 +564,26 @@ class scRNASeqE_VICReg(pl.LightningModule):
         z0 = self.forward(aug_0)
         z1 = self.forward(aug_1)
 
-        # Compute VICReg loss
-        loss = self.vicreg_loss_fn(z0, z1)
 
-        self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
+
+
+
+
+        # using similarity matrix loss!
+        loss = self.similarity_loss(z)
+
+        self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+
+
+
+
+
+
+
+        # # Compute VICReg loss
+        # loss = self.vicreg_loss_fn(z0, z1)
+
+        # self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -571,10 +599,34 @@ class scRNASeqE_VICReg(pl.LightningModule):
         z0 = self.forward(aug_0)
         z1 = self.forward(aug_1)
 
-        # VICReg loss
-        loss = self.vicreg_loss_fn(z0, z1)
 
-        self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
+
+
+
+
+
+
+
+
+        # using similarity!
+        loss = self.similarity_loss(z)
+
+        self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+
+
+
+
+
+
+
+
+
+
+
+        # # VICReg loss
+        # loss = self.vicreg_loss_fn(z0, z1)
+
+        # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def configure_optimizers(self):
@@ -1111,3 +1163,42 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class FullSimilarityMatrixLoss(nn.Module):
+    def __init__(self, target_similarity: torch.Tensor = None, mode="mse"):
+        super().__init__()
+        self.target_similarity = target_similarity  # Optional
+        assert mode in {"mse", "kl"}, "mode must be 'mse' or 'kl'"
+        self.mode = mode
+
+    def forward(self, z: torch.Tensor):
+        # z shape: (N, D)
+        z = F.normalize(z, dim=1)  # Normalize embeddings
+        sim_matrix = torch.matmul(z, z.T)  # shape: (N, N)
+
+        if self.mode == "mse":
+            # You can either:
+            # - encourage uniform similarity: target = 1 on diagonal, <1 off-diagonal
+            # - or supply a biologically meaningful target matrix
+            target = self.target_similarity.to(z.device) if self.target_similarity is not None else torch.eye(z.size(0), device=z.device)
+            loss = F.mse_loss(sim_matrix, target)
+        elif self.mode == "kl":
+            sim_probs = F.log_softmax(sim_matrix, dim=1)
+            target = self.target_similarity.to(z.device) if self.target_similarity is not None else torch.eye(z.size(0), device=z.device)
+            target_probs = F.softmax(target, dim=1)
+            loss = F.kl_div(sim_probs, target_probs, reduction="batchmean")
+
+        return loss

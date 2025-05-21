@@ -43,15 +43,15 @@ from dataset.preprocessing import scrna_seq_normalization
 from dataset.dataloader import AnnDataDataset
 
 from model.scRNA_AE import scRNASeqAE
-from model.scRNA_E_C import ContrastiveLoss, VICRegLoss, scRNASeqE_VICRegExpander
+from model.scRNA_E_C import ContrastiveLoss, VICRegLoss, scRNASeqE_VICRegExpander, FullSimilarityMatrixLoss
 from augmentations import *
 
 # -------------------------
 # 4. Hyperparameters & Setup
 # -------------------------
 PARAMETERS = {
-    "hvgs": 20116,
-    "num_genes": 20116,
+    "hvgs": 18244,
+    "num_genes": 18244,
     "latent_dimension": 128, # Originally 50
     "target_sum": 10000,
     "batch_size": 8192,
@@ -98,6 +98,31 @@ def load_tabula_muris_data():
 
     print("Loaded Tabula Muris data!")
     print(f"Train set: {tm_adata_train.shape}, Test set: {tm_adata_test.shape}")
+
+
+
+
+
+
+
+
+
+
+    ## need to get the similarity matrix here
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return tm_dataset, tm_dataloader, tm_adata_train, tm_adata_test
 
 
@@ -106,7 +131,7 @@ def load_tabula_muris_data():
 # -------------------------
 if __name__ == "__main__":
     print("running in main")
-    
+
     # 0) Setup
     PARAMETERS["num_genes"] = num_genes
     torch.set_float32_matmul_precision("medium")
