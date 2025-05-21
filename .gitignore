@@ -1,9 +1,16 @@
-data/
+data/compressed
+data/ontologies
+data/pickled
+data/raw
+data/*.hdf5
+data/.txt
+data/.loom
+
 env/
 figures/
 lightning_logs/
 pytorch.venv
-data
+
 
 .ipynb_checkpoints
 notes.md
