@@ -2,14 +2,16 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pickle
 
 # Load embeddings
 embeddings = np.load("embeddings.npy")
 similarity_matrix = cosine_similarity(embeddings)
 
 # Save matrix
-print("Saving similarity matrix to similarity_matrix.npy")
-np.save("similarity_matrix.npy", similarity_matrix)
+with open("similarity_matrix.pkl", "wb") as f:
+    pickle.dump(similarity_matrix, f)
+print("Similarity matrix saved to similarity_matrix.pkl")
 
 # Plot heatmap
 with open("phrases.txt", "r") as f:

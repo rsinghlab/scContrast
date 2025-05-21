@@ -84,6 +84,12 @@ def load_tabula_muris_data():
     tm_adata_train_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_train_length_normalized_{VERSION}.pkl"
     tm_adata_test_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_test_length_normalized_{VERSION}.pkl"
 
+
+    ## similarity matrix path
+    similarity_matrix_path = Path("biogpt_process/similarity_matrix.pkl")
+
+
+
     with open(tm_dataset_path, "rb") as f:
         tm_dataset = pickle.load(f)
 
@@ -109,6 +115,8 @@ def load_tabula_muris_data():
 
 
     ## need to get the similarity matrix here
+    with open(similarity_matrix_path, "rb") as f:
+        similarity_matrix = pickle.load(f)
 
 
 
@@ -122,8 +130,7 @@ def load_tabula_muris_data():
 
 
 
-
-    return tm_dataset, tm_dataloader, tm_adata_train, tm_adata_test
+    return tm_dataset, tm_dataloader, tm_adata_train, tm_adata_test, similarity_matrix
 
 
 # -------------------------
@@ -138,7 +145,7 @@ if __name__ == "__main__":
     seed_everything(42, workers=True)
 
     # 1) Load data
-    tm_dataset, _, tm_adata_train, tm_adata_test = load_tabula_muris_data()
+    tm_dataset, _, tm_adata_train, tm_adata_test, similarity_matrix = load_tabula_muris_data()
 
     # 1.1) Create train/validation dataloaders
     tm_dataset_train, tm_dataset_val = random_split(tm_dataset, [0.8, 0.2])
@@ -244,7 +251,8 @@ if __name__ == "__main__":
         dropout_rate_DO=0.5,
         dropout_rate_gSS=0.5,
         sigma_fill=0.5,
-        augmentations_pipeline=augmentations_pipeline
+        augmentations_pipeline=augmentations_pipeline,
+        similarity_matrix=similarity_matrix
     )
     
     augmentations_used = final_model.augmentations_used
