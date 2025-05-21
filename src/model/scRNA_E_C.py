@@ -296,7 +296,7 @@ class scRNASeqE_simCLR(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        X, y, batch_indices = batch
+        X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
         aug_0 = self.augmenter(X, y)
@@ -310,7 +310,7 @@ class scRNASeqE_simCLR(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        X, y, batch_indices = batch
+        X, y = batch
         aug_0 = self.augmenter(X, y)
         aug_1 = self.augmenter(X, y)
 
@@ -413,7 +413,7 @@ class scRNASeqE_Barlow(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        X, y, batch_indices = batch
+        X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
@@ -429,7 +429,7 @@ class scRNASeqE_Barlow(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        X, y, batch_indices = batch
+        X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
@@ -543,7 +543,7 @@ class scRNASeqE_VICReg(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        # X, y, batch_indices = batch
+        # X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
@@ -562,7 +562,7 @@ class scRNASeqE_VICReg(pl.LightningModule):
         # return loss
 
 
-        X, y, batch_indices = batch
+        X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
@@ -571,13 +571,13 @@ class scRNASeqE_VICReg(pl.LightningModule):
         z = self.forward(aug)
 
         # Compute similarity matrix loss
-        loss = self.similarity_loss(z, batch_indices)
+        loss = self.similarity_loss(z, y)
 
         self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # X, y, batch_indices = batch
+        # X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
@@ -594,7 +594,7 @@ class scRNASeqE_VICReg(pl.LightningModule):
 
         # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         # return loss
-        X, y, batch_indices = batch
+        X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
@@ -603,7 +603,7 @@ class scRNASeqE_VICReg(pl.LightningModule):
         z = self.forward(aug)
 
         # Compute similarity matrix loss
-        loss = self.similarity_loss(z, batch_indices)
+        loss = self.similarity_loss(z, y)
 
         self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
         return loss
@@ -708,7 +708,7 @@ class scRNASeqE_VICRegLarge(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        # X, y, batch_indices = batch
+        # X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
@@ -725,7 +725,7 @@ class scRNASeqE_VICRegLarge(pl.LightningModule):
 
         # self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         # return loss
-        X, y, batch_indices = batch
+        X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
@@ -734,13 +734,13 @@ class scRNASeqE_VICRegLarge(pl.LightningModule):
         z = self.forward(aug)
 
         # Compute similarity matrix loss
-        loss = self.similarity_loss(z, batch_indices)
+        loss = self.similarity_loss(z, y)
 
         self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # X, y, batch_indices = batch
+        # X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
@@ -757,7 +757,7 @@ class scRNASeqE_VICRegLarge(pl.LightningModule):
 
         # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         # return loss
-        X, y, batch_indices = batch
+        X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
@@ -766,7 +766,7 @@ class scRNASeqE_VICRegLarge(pl.LightningModule):
         z = self.forward(aug)
 
         # Compute similarity matrix loss
-        loss = self.similarity_loss(z, batch_indices)
+        loss = self.similarity_loss(z, y)
 
         self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
         return loss
@@ -879,7 +879,7 @@ class scRNASeqE_VICRegSiam(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        # X, y, batch_indices = batch
+        # X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
@@ -896,7 +896,7 @@ class scRNASeqE_VICRegSiam(pl.LightningModule):
 
         # self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         # return loss
-        X, y, batch_indices = batch
+        X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
@@ -905,13 +905,13 @@ class scRNASeqE_VICRegSiam(pl.LightningModule):
         z = self.forward(aug)
 
         # Compute similarity matrix loss
-        loss = self.similarity_loss(z, batch_indices)
+        loss = self.similarity_loss(z, y)
 
         self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # X, y, batch_indices = batch
+        # X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
@@ -928,7 +928,7 @@ class scRNASeqE_VICRegSiam(pl.LightningModule):
 
         # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         # return loss
-        X, y, batch_indices = batch
+        X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
@@ -937,7 +937,7 @@ class scRNASeqE_VICRegSiam(pl.LightningModule):
         z = self.forward(aug)
 
         # Compute similarity matrix loss
-        loss = self.similarity_loss(z, batch_indices)
+        loss = self.similarity_loss(z, y)
 
         self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
         return loss
@@ -1043,7 +1043,7 @@ class scRNASeqE_VICRegExpander(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        # X, y, batch_indices = batch
+        # X, y = batch
         # # X = X.to(self.device)
         # # y = y.to(self.device)
 
@@ -1061,7 +1061,7 @@ class scRNASeqE_VICRegExpander(pl.LightningModule):
         # self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         # return loss
 
-        X, y, batch_indices = batch
+        X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
@@ -1070,13 +1070,13 @@ class scRNASeqE_VICRegExpander(pl.LightningModule):
         z = self.forward(aug)
 
         # Compute similarity matrix loss
-        loss = self.similarity_loss(z, batch_indices)
+        loss = self.similarity_loss(z, y)
 
         self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # X, y, batch_indices = batch
+        # X, y = batch
         # # X = X.to(self.device)
         # # y = y.to(self.device)
 
@@ -1093,7 +1093,7 @@ class scRNASeqE_VICRegExpander(pl.LightningModule):
 
         # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         # return loss
-        X, y, batch_indices = batch
+        X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
@@ -1102,7 +1102,7 @@ class scRNASeqE_VICRegExpander(pl.LightningModule):
         z = self.forward(aug)
 
         # Compute similarity matrix loss
-        loss = self.similarity_loss(z, batch_indices)
+        loss = self.similarity_loss(z, y)
 
         self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
         return loss
@@ -1207,7 +1207,7 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        # X, y, batch_indices = batch
+        # X, y = batch
         # # X = X.to(self.device)
         # # y = y.to(self.device)
 
@@ -1224,7 +1224,7 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
 
         # self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         # return loss
-        X, y, batch_indices = batch
+        X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
@@ -1233,13 +1233,13 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
         z = self.forward(aug)
 
         # Compute similarity matrix loss
-        loss = self.similarity_loss(z, batch_indices)
+        loss = self.similarity_loss(z, y)
 
         self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # X, y, batch_indices = batch
+        # X, y = batch
         # # X = X.to(self.device)
         # # y = y.to(self.device)
 
@@ -1256,7 +1256,7 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
 
         # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         # return loss
-        X, y, batch_indices = batch
+        X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
@@ -1265,7 +1265,7 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
         z = self.forward(aug)
 
         # Compute similarity matrix loss
-        loss = self.similarity_loss(z, batch_indices)
+        loss = self.similarity_loss(z, y)
 
         self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
         return loss
@@ -1280,30 +1280,27 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
 class FullSimilarityMatrixLoss(nn.Module):
     def __init__(self, target_similarity, mode="mse"):
         super().__init__()
-        
-        # Convert to tensor if numpy
         if isinstance(target_similarity, np.ndarray):
             target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
-
-        self.target_similarity = target_similarity  # shape: [N_total, N_total]
+        self.target_similarity = target_similarity  # shape: (num_classes, num_classes)
         assert mode in {"mse", "kl"}, "mode must be 'mse' or 'kl'"
         self.mode = mode
 
-    def forward(self, z: torch.Tensor, batch_indices: torch.Tensor):
+    def forward(self, z: torch.Tensor, y: torch.Tensor):
         """
         z: shape (B, D) - batch of projected embeddings
-        batch_indices: shape (B,) - dataset indices for current batch
+        y: shape (B,) - class labels (categorical codes)
         """
-        z = F.normalize(z, dim=1)  # Ensure unit norm
-        sim_matrix = torch.matmul(z, z.T)  # shape (B, B)
+        z = F.normalize(z, dim=1)
+        sim_matrix = torch.matmul(z, z.T)  # shape: (B, B)
 
-        # Slice target similarity to match batch
-        target = self.target_similarity[batch_indices][:, batch_indices].to(z.device)
+        # Move y to CPU for indexing
+        y_cpu = y.detach().cpu()
+        target = self.target_similarity[y_cpu][:, y_cpu].to(z.device)  # shape: (B, B)
 
         if self.mode == "mse":
             return F.mse_loss(sim_matrix, target)
         elif self.mode == "kl":
-            # KL assumes log-softmax for sim, and softmax for target
             sim_log_probs = F.log_softmax(sim_matrix, dim=1)
             target_probs = F.softmax(target, dim=1)
             return F.kl_div(sim_log_probs, target_probs, reduction="batchmean")
