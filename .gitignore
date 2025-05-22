@@ -27,7 +27,6 @@ main.py
 *.png
 *.txt
 *.out
-*.sh
 
 # tm_multi_tissue_experiments/figures
 # tm_multi_tissue_experiments/lightning_logs
