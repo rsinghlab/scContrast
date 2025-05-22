@@ -7,7 +7,7 @@ from pathlib import Path
 
     
 class AnnDataDataset(Dataset):
-    def __init__(self, adata, filter_significant_genes=False, pval_threshold=0.05, logfc_threshold=1.0):
+    def __init__(self, adata, filter_significant_genes=False, pval_threshold=0.05, logfc_threshold=1.0, ontology_path=None):
         self.adata = adata
         self.X = adata.X  # Expression data
         # self.X = torch.tensor(adata.X.toarray(), dtype=torch.float32)  # Expression data
@@ -25,6 +25,8 @@ class AnnDataDataset(Dataset):
         self.least_significant_genes_dict = self._compute_least_significant_genes(
             pval_threshold, logfc_threshold
         )
+
+        self.ontology_path = ontology_path
 
         self.gene_names = list(adata.var.index)
         self.gene_networks = self._compute_gene_networks(pval_threshold)
@@ -90,10 +92,13 @@ class AnnDataDataset(Dataset):
         self.X = self.X[:, gene_indices]
 
     def _compute_gene_networks(self, pval_threshold):
+        if not self.ontology_path:
+            return []
         try:
             DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
-            gmt_file_path = DATA_DIR / 'ontologies/m2.cp.reactome.v2024.1.Mm.symbols.gmt' # TODO: put outside
+            gmt_file_path = DATA_DIR / 'ontologies' / 'h.all.v2024.1.Hs.symbols.gmt' # TODO: put outside
+            # gmt_file_path = DATA_DIR / 'ontologies/m2.cp.reactome.v2024.1.Mm.symbols.gmt' # TODO: put outside
             # gmt_file_path = r'./data/ontologies/mh.all.v2024.1.Mm.symbols.gmt'
 
             enr = gseapy.enrichr(gene_list=self.gene_names,
