@@ -6,7 +6,7 @@ model_name = "microsoft/biogpt"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModel.from_pretrained(model_name).cuda().eval()
 
-# Load phrases
+# Load phrases from phrases.txt
 with open("phrases.txt", "r") as f:
     phrases = [line.strip() for line in f if line.strip()]
 
