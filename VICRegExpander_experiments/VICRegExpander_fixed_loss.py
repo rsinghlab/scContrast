@@ -43,7 +43,7 @@ from dataset.preprocessing import scrna_seq_normalization
 from dataset.dataloader import AnnDataDataset
 
 from model.scRNA_AE import scRNASeqAE
-from model.scRNA_E_C import ContrastiveLoss, VICRegLoss, scRNASeqE_VICRegExpander, FullSimilarityMatrixLoss
+from model.scRNA_E_C import ContrastiveLoss, VICRegLoss, scRNASeqE_VICRegExpander
 from augmentations import *
 
 # -------------------------
@@ -84,12 +84,6 @@ def load_tabula_muris_data():
     tm_adata_train_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_train_length_normalized_{VERSION}.pkl"
     tm_adata_test_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_test_length_normalized_{VERSION}.pkl"
 
-
-    ## similarity matrix path
-    similarity_matrix_path = Path("biogpt_process/similarity_matrix.pkl")
-
-
-
     with open(tm_dataset_path, "rb") as f:
         tm_dataset = pickle.load(f)
 
@@ -104,48 +98,20 @@ def load_tabula_muris_data():
 
     print("Loaded Tabula Muris data!")
     print(f"Train set: {tm_adata_train.shape}, Test set: {tm_adata_test.shape}")
-
-
-
-
-
-
-
-
-
-
-    ## need to get the similarity matrix here
-    with open(similarity_matrix_path, "rb") as f:
-        similarity_matrix = pickle.load(f)
-
-
-
-
-
-
-
-
-
-
-
-
-
-    return tm_dataset, tm_dataloader, tm_adata_train, tm_adata_test, similarity_matrix
+    return tm_dataset, tm_dataloader, tm_adata_train, tm_adata_test
 
 
 # -------------------------
 # 9. Main (Run Tuning)
 # -------------------------
 if __name__ == "__main__":
-    print("running in main")
-
     # 0) Setup
     PARAMETERS["num_genes"] = num_genes
     torch.set_float32_matmul_precision("medium")
     seed_everything(42, workers=True)
 
     # 1) Load data
-    tm_dataset, _, tm_adata_train, tm_adata_test, similarity_matrix = load_tabula_muris_data()
+    tm_dataset, _, tm_adata_train, tm_adata_test = load_tabula_muris_data()
 
     # 1.1) Create train/validation dataloaders
     tm_dataset_train, tm_dataset_val = random_split(tm_dataset, [0.8, 0.2])
@@ -251,8 +217,7 @@ if __name__ == "__main__":
         dropout_rate_DO=0.5,
         dropout_rate_gSS=0.5,
         sigma_fill=0.5,
-        augmentations_pipeline=augmentations_pipeline,
-        similarity_matrix=similarity_matrix
+        augmentations_pipeline=augmentations_pipeline
     )
     
     augmentations_used = final_model.augmentations_used
@@ -275,7 +240,6 @@ if __name__ == "__main__":
     final_trainer = Trainer(
         max_epochs=PARAMETERS["num_epochs"],
         devices=-1,
-        accelerator="gpu",
         strategy="ddp",
         precision="bf16-mixed",
         # callbacks=[early_stop, checkpoint_callback],
@@ -498,4 +462,3 @@ if __name__ == "__main__":
     )
     fig.savefig(f"{output_folder}/test/method_Pancreas.png")
     plt.close(fig)
-

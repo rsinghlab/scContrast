@@ -13,12 +13,15 @@ import pickle
 script_dir = Path(__file__).resolve().parent.parent
 print(f'{script_dir=}')
 repo_dir = script_dir
+print(f'{repo_dir=}')
 src_dir = repo_dir / 'src'
+print(f'{src_dir=}')
 data_dir = repo_dir / 'data'
+print(f'{data_dir=}')
 sys.path.append(str(src_dir))
 sys.path.append(str(data_dir))
 
-from src.dataset.dataloader import AnnDataDataset
+from dataset.dataloader import AnnDataDataset
 
 PARAMETERS = {
     'hvgs': 20116,
@@ -34,13 +37,13 @@ PARAMETERS = {
 # Commented because I already pickled tm_adata_train/test
 tm_droplet_data = sc.read(
     # r'./data/raw/tabula_muris/TM_droplet.h5ad',
-    data_dir / 'raw' / 'tabula_muris' / 'TM_droplet.h5ad'
-    # backup_url="https://figshare.com/ndownloader/files/23938934",
+    data_dir / 'raw' / 'tabula_muris' / 'TM_droplet.h5ad',
+    backup_url="https://figshare.com/ndownloader/files/23938934",
 )
 tm_facs_data = sc.read(
     # r'./data/raw/tabula_muris/TM_facs.h5ad',
-    data_dir / 'raw' / 'tabula_muris' / 'TM_facs.h5ad'
-    # backup_url="https://figshare.com/ndownloader/files/23939711",
+    data_dir / 'raw' / 'tabula_muris' / 'TM_facs.h5ad',
+    backup_url="https://figshare.com/ndownloader/files/23939711",
 )
 tm_droplet_data_tissues = tm_droplet_data.obs.tissue.tolist()
 tm_droplet_data_tissues = {t for t in tm_droplet_data_tissues}

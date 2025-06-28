@@ -10,6 +10,7 @@ env/
 figures/
 lightning_logs/
 pytorch.venv
+venv/
 
 
 .ipynb_checkpoints
