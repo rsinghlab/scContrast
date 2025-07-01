@@ -43,7 +43,7 @@ from dataset.preprocessing import scrna_seq_normalization
 from dataset.dataloader import AnnDataDataset
 
 from model.scRNA_AE import scRNASeqAE
-from model.scRNA_E_C import ContrastiveLoss, VICRegLoss, scRNASeqE_VICRegExpander
+from model.scRNA_E_C_fixed_loss import ContrastiveLoss, VICRegLoss, scRNASeqE_VICRegExpander
 from augmentations import *
 
 # -------------------------
@@ -52,10 +52,10 @@ from augmentations import *
 PARAMETERS = {
     "hvgs": 18244,
     "num_genes": 18244,
-    "latent_dimension": 128, # Originally 50
+    "latent_dimension": 128,
     "target_sum": 10000,
     "batch_size": 8192,
-    "num_epochs": 1000,
+    "num_epochs": 50,
     "n_trials": 1,
     "trial_epochs": 1,
 }
@@ -63,22 +63,12 @@ PARAMETERS = {
 VERSION = 'v3,5'
 
 num_genes = PARAMETERS["num_genes"]
-
 seed_everything(42, workers=True)
 
 # -------------------------
 # 5. Load Data
 # -------------------------
 def load_tabula_muris_data():
-    """
-    Loads your Tabula Muris data from pickled files and returns:
-      - tm_dataset
-      - tm_dataloader
-      - tm_adata_train
-      - tm_adata_test
-    Adjust paths or file names as needed.
-    """
-    # Example paths (change to your naming as needed)
     tm_dataset_path = data_dir / "pickled" / "tabula_muris" / f"tm_dataset_train_tissues_length_normalized_{VERSION}.pkl"
     tm_dataloader_path = data_dir / "pickled" / "tabula_muris" / f"tm_dataloader_train_tissues_length_normalized_{VERSION}.pkl"
     tm_adata_train_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_train_length_normalized_{VERSION}.pkl"
@@ -86,13 +76,10 @@ def load_tabula_muris_data():
 
     with open(tm_dataset_path, "rb") as f:
         tm_dataset = pickle.load(f)
-
     with open(tm_dataloader_path, "rb") as f:
         tm_dataloader = pickle.load(f)
-
     with open(tm_adata_train_path, "rb") as f:
         tm_adata_train = pickle.load(f)
-
     with open(tm_adata_test_path, "rb") as f:
         tm_adata_test = pickle.load(f)
 
@@ -102,96 +89,51 @@ def load_tabula_muris_data():
 
 
 # -------------------------
-# 9. Main (Run Tuning)
+# 6. Main
 # -------------------------
 if __name__ == "__main__":
-    # 0) Setup
     PARAMETERS["num_genes"] = num_genes
     torch.set_float32_matmul_precision("medium")
     seed_everything(42, workers=True)
 
-    # 1) Load data
     tm_dataset, _, tm_adata_train, tm_adata_test = load_tabula_muris_data()
-
-    # 1.1) Create train/validation dataloaders
     tm_dataset_train, tm_dataset_val = random_split(tm_dataset, [0.8, 0.2])
 
-    # Now create DataLoaders from these two subsets
     train_dataloader = DataLoader(
-        tm_dataset_train,
-        batch_size=PARAMETERS["batch_size"],
-        shuffle=True,  # Typically shuffle the training data
+        tm_dataset_train, batch_size=PARAMETERS["batch_size"], shuffle=True
     )
     val_dataloader = DataLoader(
-        tm_dataset_val,
-        batch_size=PARAMETERS["batch_size"],
-        shuffle=False,
-        drop_last=False
+        tm_dataset_val, batch_size=PARAMETERS["batch_size"], shuffle=False, drop_last=False
     )
 
     precomputed_dir = data_dir / 'pickled' / 'tabula_muris' / 'precomputed'
-    precomputed_gene_clusters_path =  precomputed_dir / f'tm_dataset_train_tissues_length_normalized_{VERSION}_precomputed_gene_clusters.pkl'
-    precomputed_mu_sigma_path = precomputed_dir / f'tm_dataset_train_tissues_length_normalized_{VERSION}_precomputed_mu_sigma.pkl'
+    gene_clusters_path = precomputed_dir / f'tm_dataset_train_tissues_length_normalized_{VERSION}_precomputed_gene_clusters.pkl'
+    mu_sigma_path = precomputed_dir / f'tm_dataset_train_tissues_length_normalized_{VERSION}_precomputed_mu_sigma.pkl'
 
-    with open(precomputed_gene_clusters_path, 'rb') as f:
-        precomputed_gene_clusters = pickle.load(f)
+    with open(gene_clusters_path, 'rb') as f:
+        gene_clusters = pickle.load(f)
+    with open(mu_sigma_path, 'rb') as f:
+        mu_sigma = pickle.load(f)
 
-    with open(precomputed_mu_sigma_path, 'rb') as f:
-        precomputed_mu_sigma = pickle.load(f)
-
-    for k, v in precomputed_gene_clusters.items():
+    for k, v in gene_clusters.items():
+        globals()[k] = v
+    for k, v in mu_sigma.items():
         globals()[k] = v
 
-    for k, v in precomputed_mu_sigma.items():
-        globals()[k] = v
-
-    print('loaded precomputed!')
+    print('Loaded precomputed!')
 
     augmentations_pipeline = [
-        {
-            'fn': per_cell_type_cell_shuffle,
-            'needs_cell_types': True,
-            'kwargs': {}
-        },
-        # {
-        #     'fn': global_per_gene_gaussian,
-        #     'needs_cell_types': False,
-        #     'kwargs': lambda model: {'sigma_fill': model.sigma_fill, 'gene_dispersions': model.gene_dispersions}
-        # }, 
-        {
-            'fn': per_cell_type_significant_genes_gaussian,
-            'needs_cell_types': True,
-            'kwargs': lambda model: {
-                'gene_dict': model.most_significant_genes_dict, 
-                'mu_sigma_dict': model.cell_type_msg_mu_sigma,
-                'gene_name_to_index': model.gene_name_to_index, 
-                'sigma_value': 1e-1 }
-        },
-        # {
-        #     'fn': global_per_gene_shuffle,
-        #     'needs_cell_types': False,
-        #     'kwargs': {}
-        # },
-        {
-            'fn': dropout_augmentation,
-            'needs_cell_types': False,
-            'kwargs': lambda model: {'dropout_rate': model.dropout_rate_DO}
-        },
-        # {
-        #     'fn': global_random_scaling_augmentation,
-        #     'needs_cell_types': False,
-        #     'kwargs': {}
-        # },
-        {
-            'fn': cell_type_specific_scaling_augmentation,
-            'needs_cell_types': True,
-            'kwargs': {}
-        },
-        {
-            'fn': global_gene_subsample,
-            'needs_cell_types': False,
-            'kwargs': lambda model: {'dropout_rate': model.dropout_rate_gSS}
-        },
+        {'fn': per_cell_type_cell_shuffle, 'needs_cell_types': True, 'kwargs': {}},
+        {'fn': per_cell_type_significant_genes_gaussian, 'needs_cell_types': True,
+         'kwargs': lambda model: {'gene_dict': model.most_significant_genes_dict,
+                                  'mu_sigma_dict': model.cell_type_msg_mu_sigma,
+                                  'gene_name_to_index': model.gene_name_to_index,
+                                  'sigma_value': 1e-1}},
+        {'fn': dropout_augmentation, 'needs_cell_types': False,
+         'kwargs': lambda model: {'dropout_rate': model.dropout_rate_DO}},
+        {'fn': cell_type_specific_scaling_augmentation, 'needs_cell_types': True, 'kwargs': {}},
+        {'fn': global_gene_subsample, 'needs_cell_types': False,
+         'kwargs': lambda model: {'dropout_rate': model.dropout_rate_gSS}},
     ]
 
     final_model = scRNASeqE_VICRegExpander(
@@ -219,246 +161,49 @@ if __name__ == "__main__":
         sigma_fill=0.5,
         augmentations_pipeline=augmentations_pipeline
     )
-    
+
     augmentations_used = final_model.augmentations_used
     experiment_name = f"genes{PARAMETERS['num_genes']}_batch{PARAMETERS['batch_size']}_latent{PARAMETERS['latent_dimension']}_fixed_loss"
     augmentations_used_str = '_'.join(augmentations_used)
     print(f'{augmentations_used_str=}')
 
-    best_trial_results_checkpoints_path = f'best_trial_results/{VERSION}/checkpoints/'
-    os.makedirs(best_trial_results_checkpoints_path, exist_ok=True)
+    checkpoint_path = f'best_trial_results/{VERSION}/checkpoints/'
+    os.makedirs(checkpoint_path, exist_ok=True)
 
     early_stop = pl.callbacks.EarlyStopping('val_loss_vicreg', patience=10)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         monitor='val_loss_vicreg',
-        filename=(f'{experiment_name}_'
-                  f'{augmentations_used_str}_'
-                  'epoch={epoch}-val_loss={val_loss_vicreg:.4f}'),
-        dirpath=best_trial_results_checkpoints_path,
+        filename=f'{experiment_name}_{augmentations_used_str}_epoch={{epoch}}-val_loss={{val_loss_vicreg:.4f}}',
+        dirpath=checkpoint_path,
         auto_insert_metric_name=False,
     )
-    final_trainer = Trainer(
+
+    trainer = Trainer(
         max_epochs=PARAMETERS["num_epochs"],
         devices=-1,
         strategy="ddp",
         precision="bf16-mixed",
-        # callbacks=[early_stop, checkpoint_callback],
-        # callbacks=[checkpoint_callback],
     )
-    final_trainer.fit(final_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
+    trainer.fit(final_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
-    # best_checkpoint_path = checkpoint_callback.best_model_path
-    # import re
+    final_epoch = trainer.current_epoch
+    final_loss = trainer.callback_metrics['val_loss_vicreg']
 
-    # match = re.search(r"epoch=(\d+)-val_loss=(\d+\.\d+)", best_checkpoint_path)
-    # if match:
-    #     saved_epoch = int(match.group(1))
-    #     saved_loss = float(match.group(2))
-
-    # 5) Save best results
-    best_trial_results_path = f'best_trial_results/{VERSION}'
-    os.makedirs(best_trial_results_path, exist_ok=True)
-
-    final_epoch = final_trainer.current_epoch
-    final_loss = final_trainer.callback_metrics['val_loss_vicreg']
-    # results_filepath = f"{best_trial_results_path}/{experiment_name}_{augmentations_used_str}_epoch={saved_epoch}_final-loss={saved_loss:.4f}_val_split.txt"
-    results_filepath = f"{best_trial_results_path}/{experiment_name}_{augmentations_used_str}_epoch={final_epoch}_final-loss={final_loss:.4f}_val_split.txt"
-    # best_trial = study.best_trial
-    
-    # with open(results_filepath, "w") as f:
-    #     f.write("=== Best trial ===\n")
-    #     f.write(f"Value (val_loss_vicreg): {best_trial.value:.4f}\n")
-    #     f.write("Hyperparameters:\n")
-    #     for key, val in best_trial.params.items():
-    #         f.write(f"  {key}: {val}\n")
-
-    # print(f"Best trial results written to {results_filepath}")
-    
-    # 5) Visualize
-    import matplotlib.pyplot as plt
-    import matplotlib as mpl
-    mpl.rcParams['figure.autolayout'] = False
-    mpl.rcParams['savefig.bbox'] = 'tight'
-    mpl.rcParams['figure.dpi'] = 600
-
-    output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={saved_epoch}_final-loss={saved_loss:.4f}"
-    os.makedirs(output_folder, exist_ok=True)
-    # os.makedirs(f'{output_folder}/train', exist_ok=True)
+    output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={final_epoch}_final-loss={final_loss:.4f}"
     os.makedirs(f'{output_folder}/test', exist_ok=True)
 
-    print(f'Visualizing results; saving into {output_folder}')
-    '''
-    # Convert to numpy and visualize with UMAP
     with torch.no_grad():
-        latent_representations = final_model.encoder(
-            torch.tensor(tm_adata_train.X.toarray(), dtype=torch.float32)
-            )
-    latent_np = latent_representations.detach().cpu().numpy()
-    tm_adata_train.obsm['X_latent'] = latent_np  # Store the latents in the obsm dictionary
+        latent_test = final_model.encoder(torch.tensor(tm_adata_test.X.toarray(), dtype=torch.float32))
+    tm_adata_test.obsm['X_latent'] = latent_test.detach().cpu().numpy()
 
-    tm_adata_train = tm_adata_train.copy() #NOTE: Apparently AnnData==0.10.8 requires this..?
+    sc.pp.neighbors(tm_adata_test, use_rep='X_latent')
+    sc.tl.umap(tm_adata_test)
 
-    sc.pp.neighbors(tm_adata_train, use_rep='X_latent')  # Compute neighbors using latent space
-    sc.tl.umap(tm_adata_train)  # Run UMAP
-
-    # UMAP train tissues
-    fig = sc.pl.umap(
-        tm_adata_train, color='Celltype', show=False, return_fig=True, palette=list(mpl.colors.CSS4_COLORS.values())
-    )
-    fig.savefig(f"{output_folder}/train/celltype.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_train, color='method', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/train/method.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_train, color='tissue', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/train/tissue.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_train, color='celltype_tech_availability', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/train/celltype_tech_availability.png")
-    plt.close(fig)
-    '''
-    with torch.no_grad():
-        latent_representations_test = final_model.encoder(
-            torch.tensor(tm_adata_test.X.toarray(), dtype=torch.float32)
-            )
-    latent_np_test = latent_representations_test.detach().numpy()
-    tm_adata_test.obsm['X_latent'] = latent_np_test
-
-    tm_adata_test = tm_adata_test.copy()
-        
-    sc.pp.neighbors(tm_adata_test, use_rep='X_latent')  # Compute neighbors using latent space
-    sc.tl.umap(tm_adata_test)  # Run UMAP
-
-    # UMAP test
-    fig = sc.pl.umap(
-        tm_adata_test, color='Celltype', show=False, return_fig=True
-    )
+    fig = sc.pl.umap(tm_adata_test, color='Celltype', show=False, return_fig=True)
     fig.savefig(f"{output_folder}/test/celltype.png")
-    plt.close(fig)
 
-    fig = sc.pl.umap(
-        tm_adata_test, color='method', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/method.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_test, color='tissue', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/tissue.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_test, color='celltype_tech_availability', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/celltype_tech_availability.png")
-    plt.close(fig)
-
-    # UMAP individual test tissues, 10x only
-    fig = sc.pl.umap(
-        tm_adata_test[
-            (tm_adata_test.obs['tissue'] == 'Skin') &
-            (tm_adata_test.obs['tech'] == '10x')].copy(), color='Celltype', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/celltype_Skin_10x.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_test[
-            (tm_adata_test.obs['tissue'] == 'Liver') &
-            (tm_adata_test.obs['tech'] == '10x')].copy(), color='Celltype', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/celltype_Liver_10x.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_test[
-            (tm_adata_test.obs['tissue'] == 'Limb_Muscle') &
-            (tm_adata_test.obs['tech'] == '10x')].copy(), color='Celltype', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/celltype_Limb_Muscle_10x.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_test[
-            (tm_adata_test.obs['tissue'] == 'Pancreas') &
-            (tm_adata_test.obs['tech'] == '10x')].copy(), color='Celltype', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/celltype_Pancreas_10x.png")
-    plt.close(fig)
-
-    '''
-    # UMAP marrow
-    fig = sc.pl.umap(
-        tm_adata_train[tm_adata_train.obs['tissue'] == 'Marrow'].copy(), color='Celltype', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/train/celltype_Marrow.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_train[tm_adata_train.obs['tissue'] == 'Marrow'].copy(), color='tech', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/train/method_Marrow.png")
-    plt.close(fig)
-    '''
-
-    # UMAP Liver
-    fig = sc.pl.umap(
-        tm_adata_test[tm_adata_test.obs['tissue'] == 'Liver'].copy(), color='Celltype', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/celltype_Liver.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_test[tm_adata_test.obs['tissue'] == 'Liver'].copy(), color='tech', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/method_Liver.png")
-    plt.close(fig)
-
-    # UMAP Skin
-    fig = sc.pl.umap(
-        tm_adata_test[tm_adata_test.obs['tissue'] == 'Skin'].copy(), color='Celltype', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/celltype_Skin.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_test[tm_adata_test.obs['tissue'] == 'Skin'].copy(), color='tech', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/method_Skin.png")
-    plt.close(fig)
-
-    # UMAP Limb_Muscle
-    fig = sc.pl.umap(
-        tm_adata_test[tm_adata_test.obs['tissue'] == 'Limb_Muscle'].copy(), color='Celltype', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/celltype_Limb_Muscle.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_test[tm_adata_test.obs['tissue'] == 'Limb_Muscle'].copy(), color='tech', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/method_Limb_Muscle.png")
-    plt.close(fig)
-
-    # UMAP Pancreas
-    fig = sc.pl.umap(
-        tm_adata_test[tm_adata_test.obs['tissue'] == 'Pancreas'].copy(), color='Celltype', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/celltype_Pancreas.png")
-    plt.close(fig)
-
-    fig = sc.pl.umap(
-        tm_adata_test[tm_adata_test.obs['tissue'] == 'Pancreas'].copy(), color='tech', show=False, return_fig=True
-    )
-    fig.savefig(f"{output_folder}/test/method_Pancreas.png")
-    plt.close(fig)
+    # === Save for SCIB metrics ===
+    tm_adata_test.obsm['X_emb'] = tm_adata_test.obsm['X_latent']
+    with open("adata_test_for_metrics_1.pkl", "wb") as f:
+        pickle.dump(tm_adata_test, f)
+    print("Saved AnnData object for SCIB metrics to: adata_test_for_metrics_1.pkl")

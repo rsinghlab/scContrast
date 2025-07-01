@@ -13,7 +13,7 @@ from statistics import mean, harmonic_mean
 # Load the raised power
 print("Loading AnnData object...")
 raised_power = 1
-with open(f"adata_test_for_metrics_{raised_power}.pkl", "rb") as f:
+with open(f"VICRegExpander_experiments/adata_test_for_metrics_{raised_power}.pkl", "rb") as f: # location of pickled file
     adata = pickle.load(f)
 print("Done loading AnnData.")
 
