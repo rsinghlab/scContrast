@@ -10,12 +10,17 @@ from statistics import mean, harmonic_mean
 
 ## Choose which AnnData object to load
 
-# Load the raised power
 print("Loading AnnData object...")
-raised_power = 1
-with open(f"VICRegExpander_experiments/adata_test_for_metrics_{raised_power}.pkl", "rb") as f: # location of pickled file
+with open(f"soft_similarity_experiments/adata_test_for_metrics_1.pkl", "rb") as f:
     adata = pickle.load(f)
 print("Done loading AnnData.")
+
+# Load the raised power
+# print("Loading AnnData object...")
+# raised_power = 1
+# with open(f"VICRegExpander_experiments/adata_test_for_metrics_{raised_power}.pkl", "rb") as f: # location of pickled file
+#     adata = pickle.load(f)
+# print("Done loading AnnData.")
 
 # # Load the softmax
 # print("Loading AnnData object...")

@@ -1277,14 +1277,44 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
 
 
 ## similarity matrix loss
+
+# class FullSimilarityMatrixLoss(nn.Module):
+#     def __init__(self, target_similarity, mode="mse"):
+#         super().__init__()
+#         if isinstance(target_similarity, np.ndarray):
+#             target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
+#         self.target_similarity = target_similarity  # shape: (num_classes, num_classes)
+#         assert mode in {"mse", "kl"}, "mode must be 'mse' or 'kl'"
+#         self.mode = mode
+
+#     def forward(self, z: torch.Tensor, y: torch.Tensor):
+#         """
+#         z: shape (B, D) - batch of projected embeddings
+#         y: shape (B,) - class labels (categorical codes)
+#         """
+#         z = F.normalize(z, dim=1)
+#         sim_matrix = torch.matmul(z, z.T)  # shape: (B, B)
+
+#         # Move y to CPU for indexing
+#         y_cpu = y.detach().cpu()
+#         target = self.target_similarity[y_cpu][:, y_cpu].to(z.device)  # shape: (B, B)
+
+#         if self.mode == "mse":
+#             return F.mse_loss(sim_matrix, target)
+#         elif self.mode == "kl":
+#             sim_log_probs = F.log_softmax(sim_matrix, dim=1)
+#             target_probs = F.softmax(target, dim=1)
+#             return F.kl_div(sim_log_probs, target_probs, reduction="batchmean")
+
 class FullSimilarityMatrixLoss(nn.Module):
-    def __init__(self, target_similarity, mode="mse"):
+    def __init__(self, target_similarity, mode="mse", lambda_separation=1.0):
         super().__init__()
         if isinstance(target_similarity, np.ndarray):
             target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
         self.target_similarity = target_similarity  # shape: (num_classes, num_classes)
         assert mode in {"mse", "kl"}, "mode must be 'mse' or 'kl'"
         self.mode = mode
+        self.lambda_separation = lambda_separation
 
     def forward(self, z: torch.Tensor, y: torch.Tensor):
         """
@@ -1294,13 +1324,26 @@ class FullSimilarityMatrixLoss(nn.Module):
         z = F.normalize(z, dim=1)
         sim_matrix = torch.matmul(z, z.T)  # shape: (B, B)
 
-        # Move y to CPU for indexing
+        # Get the target similarity for this batch
         y_cpu = y.detach().cpu()
-        target = self.target_similarity[y_cpu][:, y_cpu].to(z.device)  # shape: (B, B)
+        target = self.target_similarity[y_cpu][:, y_cpu].to(z.device)
 
+        # Main similarity matching loss
         if self.mode == "mse":
-            return F.mse_loss(sim_matrix, target)
+            sim_loss = F.mse_loss(sim_matrix, target)
         elif self.mode == "kl":
             sim_log_probs = F.log_softmax(sim_matrix, dim=1)
             target_probs = F.softmax(target, dim=1)
-            return F.kl_div(sim_log_probs, target_probs, reduction="batchmean")
+            sim_loss = F.kl_div(sim_log_probs, target_probs, reduction="batchmean")
+
+        # Class-aware separation loss: push apart inter-class pairs only
+        with torch.no_grad():
+            same_class_mask = (y[:, None] == y[None, :]).float()
+            eye_mask = torch.eye(len(y), device=y.device)
+            inter_class_mask = (1.0 - same_class_mask) * (1.0 - eye_mask)
+
+        mean_inter_class_sim = sim_matrix[inter_class_mask.bool()].mean()
+        separation_loss = -mean_inter_class_sim  # push different classes apart
+
+        return sim_loss + self.lambda_separation * separation_loss
+

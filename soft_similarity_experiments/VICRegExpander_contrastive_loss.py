@@ -86,9 +86,10 @@ def load_tabula_muris_data():
     tm_adata_test_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_test_length_normalized_{VERSION}.pkl"
     
     ## similarity matrix path, adjust if you want to use a different power
-    similarity_matrix_path = similarity_dir / f"similarity_matrix_deepseek.pkl"
+    # similarity_matrix_path = similarity_dir / f"similarity_matrix_deepseek.pkl"
     # similarity_matrix_path = data_dir / "pickled" / "tabula_muris" / f"similarity_matrix_{raised_power}_{VERSION}.pkl"
     # similarity_matrix_path = data_dir / "pickled" / "tabula_muris" / f"similarity_matrix_softmax_{VERSION}.pkl"
+    similarity_matrix_path = similarity_dir / f"similarity_matrix_biogpt.pkl"
 
     with open(tm_dataset_path, "rb") as f:
         tm_dataset = pickle.load(f)
@@ -486,13 +487,14 @@ if __name__ == "__main__":
 
     # Save the model for metric evaluation
     tm_adata_test.obsm["X_emb"] = latent_np_test
-    with open(f"adata_test_for_metrics_deepseek.pkl", "wb") as f:
-        pickle.dump(tm_adata_test, f)
-    print(f"Saved model for metric evaluation with deepseek.")
 
-    # with open(f"adata_test_for_metrics_{raised_power}.pkl", "wb") as f:
+    # with open(f"adata_test_for_metrics_deepseek.pkl", "wb") as f:
     #     pickle.dump(tm_adata_test, f)
-    # print(f"Saved model for metric evaluation with raised_power={raised_power}.")
+    # print(f"Saved model for metric evaluation with deepseek.")
+
+    with open(f"adata_test_for_metrics_{raised_power}.pkl", "wb") as f:
+        pickle.dump(tm_adata_test, f)
+    print(f"Saved model for metric evaluation with raised_power={raised_power}.")
 
     # with open(f"adata_test_for_metrics_softmax.pkl", "wb") as f:
     #     pickle.dump(tm_adata_test, f)

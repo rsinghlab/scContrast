@@ -7,7 +7,7 @@ import seaborn as sns
 import pickle
 
 # Load model and tokenizer
-model_name = "deepseek-ai/deepseek-coder-1.3b-base" # "microsoft/biogpt"
+model_name = "microsoft/biogpt"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModel.from_pretrained(model_name).cuda().eval()
 
@@ -31,7 +31,7 @@ for phrase in phrases:
 embeddings = np.stack(embeddings)
 
 # Save embeddings to file
-filename = "similarity_matrix_deepseek.pkl"
+filename = "similarity_matrix_biogpt.pkl"
 
 # Compute similarity matrix
 similarity_matrix = cosine_similarity(embeddings)
