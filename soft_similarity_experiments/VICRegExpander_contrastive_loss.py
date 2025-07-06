@@ -57,7 +57,7 @@ PARAMETERS = {
     "latent_dimension": 128, # Originally 50
     "target_sum": 10000,
     "batch_size": 1024,
-    "num_epochs": 50,
+    "num_epochs": 10,
 }
 
 VERSION = 'v3,5'
@@ -295,6 +295,7 @@ if __name__ == "__main__":
     final_epoch = final_trainer.current_epoch
     final_loss = final_trainer.callback_metrics['val_loss_similarity']
     
+    
     # 5) Visualize
     import matplotlib.pyplot as plt
     import matplotlib as mpl
@@ -302,8 +303,8 @@ if __name__ == "__main__":
     mpl.rcParams['savefig.bbox'] = 'tight'
     mpl.rcParams['figure.dpi'] = 600
 
-    output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={saved_epoch}_final-loss={saved_loss:.4f}"
-    # output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={final_epoch}_final-loss={final_loss:.4f}"
+    # output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={saved_epoch}_final-loss={saved_loss:.4f}"
+    output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={final_epoch}_final-loss={final_loss:.4f}"
     os.makedirs(output_folder, exist_ok=True)
     # os.makedirs(f'{output_folder}/train', exist_ok=True)
     os.makedirs(f'{output_folder}/test', exist_ok=True)
