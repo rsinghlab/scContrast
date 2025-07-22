@@ -461,8 +461,7 @@ class scRNASeqE_VICReg(pl.LightningModule):
                  dropout_rate_gSS=0.5,
                  sigma_fill=0.1,
                  eps=1e-4,
-                 augmentations_pipeline=[],
-                 similarity_matrix=None):
+                 augmentations_pipeline=[]):
         """
         Replace or adjust default hyperparameters to your liking.
         """
@@ -483,11 +482,6 @@ class scRNASeqE_VICReg(pl.LightningModule):
         #     eps=eps
         # )
 
-        ## using similarity loss now!
-        self.similarity_loss = FullSimilarityMatrixLoss(target_similarity=similarity_matrix, mode="mse")
-
-
-
         # Assign precomputed variables (used in augmentations)
         self.cell_type_mu_sigma = cell_type_mu_sigma
         self.global_mu_sigma = global_mu_sigma
@@ -543,69 +537,41 @@ class scRNASeqE_VICReg(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        # X, y = batch
-        # X = X.to(self.device)
-        # y = y.to(self.device)
-
-        # # Generate two augmentations of the same batch
-        # aug_0 = self.augmenter(X, y)
-        # aug_1 = self.augmenter(X, y)
-
-        # # Forward pass through encoder + projector
-        # z0 = self.forward(aug_0)
-        # z1 = self.forward(aug_1)
-
-        # # Compute VICReg loss
-        # loss = self.vicreg_loss_fn(z0, z1)
-
-        # self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
-        # return loss
-
-
         X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
-        # Only need one encoding with similarity matrix
-        aug = self.augmenter(X, y)
-        z = self.forward(aug)
+        # Generate two augmentations of the same batch
+        aug_0 = self.augmenter(X, y)
+        aug_1 = self.augmenter(X, y)
 
-        # Compute similarity matrix loss
-        loss = self.similarity_loss(z, y)
+        # Forward pass through encoder + projector
+        z0 = self.forward(aug_0)
+        z1 = self.forward(aug_1)
 
-        self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+        # Compute VICReg loss
+        loss = self.vicreg_loss_fn(z0, z1)
+
+        self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # X, y = batch
-        # X = X.to(self.device)
-        # y = y.to(self.device)
-
-        # # Augment
-        # aug_0 = self.augmenter(X, y)
-        # aug_1 = self.augmenter(X, y)
-
-        # # Forward pass
-        # z0 = self.forward(aug_0)
-        # z1 = self.forward(aug_1)
-
-        # # VICReg loss
-        # loss = self.vicreg_loss_fn(z0, z1)
-
-        # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
-        # return loss
         X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
-        # Only need one encoding with similarity matrix
-        aug = self.augmenter(X, y)
-        z = self.forward(aug)
+        # Augment
+        aug_0 = self.augmenter(X, y)
+        aug_1 = self.augmenter(X, y)
 
-        # Compute similarity matrix loss
-        loss = self.similarity_loss(z, y)
+        # Forward pass
+        z0 = self.forward(aug_0)
+        z1 = self.forward(aug_1)
 
-        self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+        # VICReg loss
+        loss = self.vicreg_loss_fn(z0, z1)
+
+        self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def configure_optimizers(self):
@@ -626,8 +592,7 @@ class scRNASeqE_VICRegLarge(pl.LightningModule):
                  dropout_rate_gSS=0.5,
                  sigma_fill=0.1,
                  eps=1e-4,
-                 augmentations_pipeline=[],
-                 similarity_matrix=None):
+                 augmentations_pipeline=[]):
         """
         Replace or adjust default hyperparameters to your liking.
         """
@@ -639,19 +604,14 @@ class scRNASeqE_VICRegLarge(pl.LightningModule):
         self.encoder = scRNASeqEncoderLarge(PARAMETERS)
         self.projector = scRNASeqProjectionHead(PARAMETERS)
 
-        # # Create an instance of the VICReg loss
-        # self.vicreg_loss_fn = VICRegLoss(
-        #     sim_weight=sim_weight,
-        #     var_weight=var_weight,
-        #     cov_weight=cov_weight,
-        #     std_target=std_target,
-        #     eps=eps
-        # )
-
-        ## using similarity loss now!
-        self.similarity_loss = FullSimilarityMatrixLoss(target_similarity=similarity_matrix, mode="mse")
-
-
+        # Create an instance of the VICReg loss
+        self.vicreg_loss_fn = VICRegLoss(
+            sim_weight=sim_weight,
+            var_weight=var_weight,
+            cov_weight=cov_weight,
+            std_target=std_target,
+            eps=eps
+        )
 
         # Assign precomputed variables (used in augmentations)
         self.cell_type_mu_sigma = cell_type_mu_sigma
@@ -708,67 +668,41 @@ class scRNASeqE_VICRegLarge(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        # X, y = batch
-        # X = X.to(self.device)
-        # y = y.to(self.device)
-
-        # # Generate two augmentations of the same batch
-        # aug_0 = self.augmenter(X, y)
-        # aug_1 = self.augmenter(X, y)
-
-        # # Forward pass through encoder + projector
-        # z0 = self.forward(aug_0)
-        # z1 = self.forward(aug_1)
-
-        # # Compute VICReg loss
-        # loss = self.vicreg_loss_fn(z0, z1)
-
-        # self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
-        # return loss
         X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
-        # Only need one encoding with similarity matrix
-        aug = self.augmenter(X, y)
-        z = self.forward(aug)
+        # Generate two augmentations of the same batch
+        aug_0 = self.augmenter(X, y)
+        aug_1 = self.augmenter(X, y)
 
-        # Compute similarity matrix loss
-        loss = self.similarity_loss(z, y)
+        # Forward pass through encoder + projector
+        z0 = self.forward(aug_0)
+        z1 = self.forward(aug_1)
 
-        self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+        # Compute VICReg loss
+        loss = self.vicreg_loss_fn(z0, z1)
+
+        self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # X, y = batch
-        # X = X.to(self.device)
-        # y = y.to(self.device)
-
-        # # Augment
-        # aug_0 = self.augmenter(X, y)
-        # aug_1 = self.augmenter(X, y)
-
-        # # Forward pass
-        # z0 = self.forward(aug_0)
-        # z1 = self.forward(aug_1)
-
-        # # VICReg loss
-        # loss = self.vicreg_loss_fn(z0, z1)
-
-        # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
-        # return loss
         X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
-        # Only need one encoding with similarity matrix
-        aug = self.augmenter(X, y)
-        z = self.forward(aug)
+        # Augment
+        aug_0 = self.augmenter(X, y)
+        aug_1 = self.augmenter(X, y)
 
-        # Compute similarity matrix loss
-        loss = self.similarity_loss(z, y)
+        # Forward pass
+        z0 = self.forward(aug_0)
+        z1 = self.forward(aug_1)
 
-        self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+        # VICReg loss
+        loss = self.vicreg_loss_fn(z0, z1)
+
+        self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def configure_optimizers(self):
@@ -789,8 +723,7 @@ class scRNASeqE_VICRegSiam(pl.LightningModule):
                  dropout_rate_gSS=0.5,
                  sigma_fill=0.1,
                  eps=1e-4,
-                 augmentations_pipeline=[],
-                 similarity_matrix=None):
+                 augmentations_pipeline=[]):
         """
         Replace or adjust default hyperparameters to your liking.
         """
@@ -804,19 +737,14 @@ class scRNASeqE_VICRegSiam(pl.LightningModule):
         self.projector1 = scRNASeqProjectionHead(PARAMETERS)
         self.projector2 = scRNASeqProjectionHead(PARAMETERS)
 
-        # # Create an instance of the VICReg loss
-        # self.vicreg_loss_fn = VICRegLoss(
-        #     sim_weight=sim_weight,
-        #     var_weight=var_weight,
-        #     cov_weight=cov_weight,
-        #     std_target=std_target,
-        #     eps=eps
-        # )
-
-        ## using similarity loss now!
-        self.similarity_loss = FullSimilarityMatrixLoss(target_similarity=similarity_matrix, mode="mse")
-
-
+        # Create an instance of the VICReg loss
+        self.vicreg_loss_fn = VICRegLoss(
+            sim_weight=sim_weight,
+            var_weight=var_weight,
+            cov_weight=cov_weight,
+            std_target=std_target,
+            eps=eps
+        )
 
         # Assign precomputed variables (used in augmentations)
         self.cell_type_mu_sigma = cell_type_mu_sigma
@@ -879,67 +807,41 @@ class scRNASeqE_VICRegSiam(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        # X, y = batch
-        # X = X.to(self.device)
-        # y = y.to(self.device)
-
-        # # Generate two augmentations of the same batch
-        # aug_0 = self.augmenter(X, y)
-        # aug_1 = self.augmenter(X, y)
-
-        # # Forward pass through encoder + projector
-        # z0 = self.forward1(aug_0)
-        # z1 = self.forward2(aug_1)
-
-        # # Compute VICReg loss
-        # loss = self.vicreg_loss_fn(z0, z1)
-
-        # self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
-        # return loss
         X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
-        # Only need one encoding with similarity matrix
-        aug = self.augmenter(X, y)
-        z = self.forward(aug)
+        # Generate two augmentations of the same batch
+        aug_0 = self.augmenter(X, y)
+        aug_1 = self.augmenter(X, y)
 
-        # Compute similarity matrix loss
-        loss = self.similarity_loss(z, y)
+        # Forward pass through encoder + projector
+        z0 = self.forward1(aug_0)
+        z1 = self.forward2(aug_1)
 
-        self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+        # Compute VICReg loss
+        loss = self.vicreg_loss_fn(z0, z1)
+
+        self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # X, y = batch
-        # X = X.to(self.device)
-        # y = y.to(self.device)
-
-        # # Augment
-        # aug_0 = self.augmenter(X, y)
-        # aug_1 = self.augmenter(X, y)
-
-        # # Forward pass
-        # z0 = self.forward1(aug_0)
-        # z1 = self.forward2(aug_1)
-
-        # # VICReg loss
-        # loss = self.vicreg_loss_fn(z0, z1)
-
-        # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
-        # return loss
         X, y = batch
         X = X.to(self.device)
         y = y.to(self.device)
 
-        # Only need one encoding with similarity matrix
-        aug = self.augmenter(X, y)
-        z = self.forward(aug)
+        # Augment
+        aug_0 = self.augmenter(X, y)
+        aug_1 = self.augmenter(X, y)
 
-        # Compute similarity matrix loss
-        loss = self.similarity_loss(z, y)
+        # Forward pass
+        z0 = self.forward1(aug_0)
+        z1 = self.forward2(aug_1)
 
-        self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+        # VICReg loss
+        loss = self.vicreg_loss_fn(z0, z1)
+
+        self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def configure_optimizers(self):
@@ -960,8 +862,7 @@ class scRNASeqE_VICRegExpander(pl.LightningModule):
                  dropout_rate_gSS=0.5,
                  sigma_fill=0.1,
                  eps=1e-4,
-                 augmentations_pipeline=[],
-                 similarity_matrix=None):
+                 augmentations_pipeline=[]):
         """
         Replace or adjust default hyperparameters to your liking.
         """
@@ -973,20 +874,14 @@ class scRNASeqE_VICRegExpander(pl.LightningModule):
         self.encoder = scRNASeqEncoder(PARAMETERS)
         self.projector = scRNASeqProjectionHeadExpander(PARAMETERS)
 
-        # # Create an instance of the VICReg loss
-        # self.vicreg_loss_fn = VICRegLoss(
-        #     sim_weight=sim_weight,
-        #     var_weight=var_weight,
-        #     cov_weight=cov_weight,
-        #     std_target=std_target,
-        #     eps=eps
-        # )
-
-        ## using similarity loss now!
-        self.similarity_loss = FullSimilarityMatrixLoss(target_similarity=similarity_matrix, mode="mse")
-
-
-
+        # Create an instance of the VICReg loss
+        self.vicreg_loss_fn = VICRegLoss(
+            sim_weight=sim_weight,
+            var_weight=var_weight,
+            cov_weight=cov_weight,
+            std_target=std_target,
+            eps=eps
+        )
 
         # Assign precomputed variables (used in augmentations)
         self.cell_type_mu_sigma = cell_type_mu_sigma
@@ -1043,68 +938,41 @@ class scRNASeqE_VICRegExpander(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        # X, y = batch
-        # # X = X.to(self.device)
-        # # y = y.to(self.device)
-
-        # # Generate two augmentations of the same batch
-        # aug_0 = self.augmenter(X, y)
-        # aug_1 = self.augmenter(X, y)
-
-        # # Forward pass through encoder + projector
-        # z0 = self.forward(aug_0)
-        # z1 = self.forward(aug_1)
-
-        # # Compute VICReg loss
-        # loss = self.vicreg_loss_fn(z0, z1)
-
-        # self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
-        # return loss
-
         X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
-        # Only need one encoding with similarity matrix
-        aug = self.augmenter(X, y)
-        z = self.forward(aug)
+        # Generate two augmentations of the same batch
+        aug_0 = self.augmenter(X, y)
+        aug_1 = self.augmenter(X, y)
 
-        # Compute similarity matrix loss
-        loss = self.similarity_loss(z, y)
+        # Forward pass through encoder + projector
+        z0 = self.forward(aug_0)
+        z1 = self.forward(aug_1)
 
-        self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+        # Compute VICReg loss
+        loss = self.vicreg_loss_fn(z0, z1)
+
+        self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # X, y = batch
-        # # X = X.to(self.device)
-        # # y = y.to(self.device)
-
-        # # Augment
-        # aug_0 = self.augmenter(X, y)
-        # aug_1 = self.augmenter(X, y)
-
-        # # Forward pass
-        # z0 = self.forward(aug_0)
-        # z1 = self.forward(aug_1)
-
-        # # VICReg loss
-        # loss = self.vicreg_loss_fn(z0, z1)
-
-        # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
-        # return loss
         X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
 
-        # Only need one encoding with similarity matrix
-        aug = self.augmenter(X, y)
-        z = self.forward(aug)
+        # Augment
+        aug_0 = self.augmenter(X, y)
+        aug_1 = self.augmenter(X, y)
 
-        # Compute similarity matrix loss
-        loss = self.similarity_loss(z, y)
+        # Forward pass
+        z0 = self.forward(aug_0)
+        z1 = self.forward(aug_1)
 
-        self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+        # VICReg loss
+        loss = self.vicreg_loss_fn(z0, z1)
+
+        self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
         return loss
 
     def configure_optimizers(self):
@@ -1125,8 +993,7 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
                  dropout_rate_gSS=0.5,
                  sigma_fill=0.1,
                  eps=1e-4,
-                 augmentations_pipeline=[],
-                 similarity_matrix=None):
+                 augmentations_pipeline=[]):
         """
         Replace or adjust default hyperparameters to your liking.
         """
@@ -1136,6 +1003,140 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
 
         # Define your encoder and projector
         self.encoder = scRNASeqEncoderLarge(PARAMETERS)
+        self.projector = scRNASeqProjectionHeadExpander(PARAMETERS)
+
+        # Create an instance of the VICReg loss
+        self.vicreg_loss_fn = VICRegLoss(
+            sim_weight=sim_weight,
+            var_weight=var_weight,
+            cov_weight=cov_weight,
+            std_target=std_target,
+            eps=eps
+        )
+
+
+        # Assign precomputed variables (used in augmentations)
+        self.cell_type_mu_sigma = cell_type_mu_sigma
+        self.global_mu_sigma = global_mu_sigma
+        self.cell_type_msg_mu_sigma = cell_type_msg_mu_sigma
+        self.cell_type_lsg_mu_sigma = cell_type_lsg_mu_sigma
+        self.most_significant_genes_dict = most_significant_genes_dict
+        self.least_significant_genes_dict = least_significant_genes_dict
+        self.gene_networks = gene_networks
+        self.gene_names = gene_names
+        self.code_to_celltype = code_to_celltype
+        self.celltype_to_code = celltype_to_code
+        self.gene_name_to_index = gene_name_to_index
+        self.index_to_gene_name = index_to_gene_name
+        self.gene_dispersions = gene_dispersions
+
+        self.dropout_rate_DO = dropout_rate_DO
+        self.dropout_rate_gSS = dropout_rate_gSS
+        self.sigma_fill = sigma_fill
+        self.augmentations_pipeline = augmentations_pipeline
+
+        self.augmentations_used = []
+        for step in self.augmentations_pipeline:
+            # global augmentations_used
+            short_name = AUGMENTATION_SHORT_NAMES[step['fn']]
+            self.augmentations_used.append(short_name)
+
+    def forward(self, X):
+        # X -> encoder -> projector -> embeddings (z)
+        latent = self.encoder(X)
+        z = self.projector(latent)
+        return z
+
+    def augmenter(self, X, y):
+        """
+        Applies a series of augmentations from self.augmentations_pipeline to X.
+        y are cell types, used if augmentation function needs them.
+        """
+        aug_out = X
+        for step in self.augmentations_pipeline:
+            fn = step['fn']
+            needs_cell_types = step.get('needs_cell_types', False)
+            kwargs_config = step.get('kwargs', {})
+
+            if callable(kwargs_config): # This will handle augmentations with lambda kwargs; i.e. those that rely on model's arguments
+                fn_kwargs = kwargs_config(self)
+            else:
+                fn_kwargs = kwargs_config
+            
+            if needs_cell_types:
+                aug_out = fn(expression_matrix=aug_out, cell_types=y, **fn_kwargs)
+            else:
+                aug_out = fn(expression_matrix=aug_out, **fn_kwargs)
+        return aug_out
+
+    def training_step(self, batch, batch_idx):
+        X, y = batch
+        # X = X.to(self.device)
+        # y = y.to(self.device)
+
+        # Generate two augmentations of the same batch
+        aug_0 = self.augmenter(X, y)
+        aug_1 = self.augmenter(X, y)
+
+        # Forward pass through encoder + projector
+        z0 = self.forward(aug_0)
+        z1 = self.forward(aug_1)
+
+        # Compute VICReg loss
+        loss = self.vicreg_loss_fn(z0, z1)
+
+        self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        X, y = batch
+        # X = X.to(self.device)
+        # y = y.to(self.device)
+
+        # Augment
+        aug_0 = self.augmenter(X, y)
+        aug_1 = self.augmenter(X, y)
+
+        # Forward pass
+        z0 = self.forward(aug_0)
+        z1 = self.forward(aug_1)
+
+        # VICReg loss
+        loss = self.vicreg_loss_fn(z0, z1)
+
+        self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
+        return loss
+
+    def configure_optimizers(self):
+        return torch.optim.AdamW(self.parameters())
+
+
+class scRNASeqE_VICReg_Contrastive(pl.LightningModule):
+    def __init__(self, PARAMETERS, 
+                 cell_type_mu_sigma, global_mu_sigma, 
+                 cell_type_msg_mu_sigma, cell_type_lsg_mu_sigma, 
+                 most_significant_genes_dict, least_significant_genes_dict,
+                 gene_networks, gene_names, code_to_celltype, celltype_to_code, 
+                 gene_name_to_index, index_to_gene_name, gene_dispersions,
+                 sim_weight=25.0,
+                 var_weight=25.0,
+                 cov_weight=1.0,
+                 std_target=1.0,
+                 dropout_rate_DO=0.5,
+                 dropout_rate_gSS=0.5,
+                 sigma_fill=0.1,
+                 eps=1e-4,
+                 augmentations_pipeline=[],
+                 similarity_matrix=None):
+        """
+        Replace or adjust default hyperparameters to your liking.
+        """
+        super(scRNASeqE_VICReg_Contrastive, self).__init__()
+        self.save_hyperparameters(ignore=['augmentations_pipeline'])
+        self.PARAMETERS = PARAMETERS
+
+        # Define your encoder and projector
+        self.encoder = scRNASeqEncoder(PARAMETERS)
         self.projector = scRNASeqProjectionHeadExpander(PARAMETERS)
 
         # # Create an instance of the VICReg loss
@@ -1148,7 +1149,8 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
         # )
 
         ## using similarity loss now!
-        self.similarity_loss = FullSimilarityMatrixLoss(target_similarity=similarity_matrix, mode="mse")
+        self.similarity_loss = FullSimilarityMatrixLoss(target_similarity=similarity_matrix)
+
 
 
 
@@ -1207,23 +1209,6 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
         return aug_out
 
     def training_step(self, batch, batch_idx):
-        # X, y = batch
-        # # X = X.to(self.device)
-        # # y = y.to(self.device)
-
-        # # Generate two augmentations of the same batch
-        # aug_0 = self.augmenter(X, y)
-        # aug_1 = self.augmenter(X, y)
-
-        # # Forward pass through encoder + projector
-        # z0 = self.forward(aug_0)
-        # z1 = self.forward(aug_1)
-
-        # # Compute VICReg loss
-        # loss = self.vicreg_loss_fn(z0, z1)
-
-        # self.log("train_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
-        # return loss
         X, y = batch
         # X = X.to(self.device)
         # y = y.to(self.device)
@@ -1274,71 +1259,87 @@ class scRNASeqE_VICRegExpanderLarge(pl.LightningModule):
         return torch.optim.AdamW(self.parameters())
 
 
-
-
 ## similarity matrix loss
-
-# class FullSimilarityMatrixLoss(nn.Module):
-#     def __init__(self, target_similarity, mode="mse"):
-#         super().__init__()
-#         if isinstance(target_similarity, np.ndarray):
-#             target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
-#         self.target_similarity = target_similarity  # shape: (num_classes, num_classes)
-#         assert mode in {"mse", "kl"}, "mode must be 'mse' or 'kl'"
-#         self.mode = mode
-
-#     def forward(self, z: torch.Tensor, y: torch.Tensor):
-#         """
-#         z: shape (B, D) - batch of projected embeddings
-#         y: shape (B,) - class labels (categorical codes)
-#         """
-#         z = F.normalize(z, dim=1)
-#         sim_matrix = torch.matmul(z, z.T)  # shape: (B, B)
-
-#         # Move y to CPU for indexing
-#         y_cpu = y.detach().cpu()
-#         target = self.target_similarity[y_cpu][:, y_cpu].to(z.device)  # shape: (B, B)
-
-#         if self.mode == "mse":
-#             return F.mse_loss(sim_matrix, target)
-#         elif self.mode == "kl":
-#             sim_log_probs = F.log_softmax(sim_matrix, dim=1)
-#             target_probs = F.softmax(target, dim=1)
-#             return F.kl_div(sim_log_probs, target_probs, reduction="batchmean")
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 class FullSimilarityMatrixLoss(nn.Module):
-    def __init__(self, target_similarity, mode="mse", lambda_separation=0.01, lambda_compactness=0.0):
+    def __init__(self, target_similarity):
+        """
+        target_similarity: global similarity matrix between cell types
+        """
         super().__init__()
         if isinstance(target_similarity, np.ndarray):
             target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
-        self.target_similarity = target_similarity
-        assert mode in {"mse", "kl"}
-        self.mode = mode
-        self.lambda_separation = lambda_separation
-        self.lambda_compactness = lambda_compactness
+        self.register_buffer("target_similarity", target_similarity)
 
-    def forward(self, z: torch.Tensor, y: torch.Tensor):
-        z = F.normalize(z, dim=1)
-        sim_matrix = torch.matmul(z, z.T)
+    def forward(self, Z, y):
+        """
+        Z: [B, D] - embeddings for a batch of cells
+        y: [B] - integer cell type codes or indices (used to extract the correct submatrix from target_similarity)
+        """
+        # Normalize embeddings
+        Z = F.normalize(Z, dim=1)
 
-        y_cpu = y.detach().cpu()
-        target = self.target_similarity[y_cpu][:, y_cpu].to(z.device)
+        # Compute predicted similarity matrix
+        pred_sim = Z @ Z.T  # [B, B]
 
-        if self.mode == "mse":
-            sim_loss = F.mse_loss(sim_matrix, target)
-        else:
-            sim_log_probs = F.log_softmax(sim_matrix, dim=1)
-            target_probs = F.softmax(target, dim=1)
-            sim_loss = F.kl_div(sim_log_probs, target_probs, reduction="batchmean")
+        # Slice target similarity submatrix for current batch
+        G = self.target_similarity[y][:, y]  # [B, B]
 
-        same_class_mask = (y[:, None] == y[None, :]).float()
-        eye_mask = torch.eye(len(y), device=y.device)
-        inter_class_mask = (1.0 - same_class_mask) * (1.0 - eye_mask)
+        # Frobenius norm loss
+        loss = torch.norm(pred_sim - G, p='fro') ** 2
+        return loss
 
-        mean_inter_class_sim = sim_matrix[inter_class_mask.bool()].mean()
-        separation_loss = -mean_inter_class_sim
 
-        compactness_loss = ((1.0 - sim_matrix) * same_class_mask * (1.0 - eye_mask)).mean()
+# import torch
+# import torch.nn.functional as F
+# from torch import nn
 
-        return sim_loss + self.lambda_separation * separation_loss + self.lambda_compactness * compactness_loss
+# class FullSimilarityMatrixLoss(nn.Module):
+#     def __init__(
+#         self,
+#         target_similarity: torch.Tensor,
+#         lambda_invariance: float = 1.0,
+#         lambda_variance: float = 1.0,
+#         lambda_covariance: float = 1.0,
+#         eps: float = 1e-4,
+#     ):
+#         super().__init__()
+#         if isinstance(target_similarity, torch.Tensor):
+#             self.target_similarity = target_similarity
+#         else:
+#             self.target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
+#         self.lambda_invariance = lambda_invariance
+#         self.lambda_variance = lambda_variance
+#         self.lambda_covariance = lambda_covariance
+#         self.eps = eps
 
+#     def forward(self, z: torch.Tensor, y: torch.Tensor):
+#         # z: embeddings of shape (2Nb, d)
+#         z = F.normalize(z, dim=1)
+#         sim_matrix = z @ z.T
+
+#         y_cpu = y.detach().cpu()
+#         target = self.target_similarity[y_cpu][:, y_cpu].to(z.device)
+
+#         # ——— invariance term (match full sim‐matrix to graph) ———
+#         invariance_loss = F.mse_loss(sim_matrix, target)
+
+#         # ——— variance term ———
+#         # ensure each embedding dimension has std ≥ 1
+#         std = torch.sqrt(z.var(dim=0) + self.eps)
+#         variance_loss = torch.mean(F.relu(1.0 - std))
+
+#         # ——— covariance term ———
+#         z_centered = z - z.mean(dim=0)
+#         cov = (z_centered.T @ z_centered) / (z.size(0) - 1)
+#         off_diag = cov.flatten()[~torch.eye(cov.size(0), device=cov.device, dtype=torch.bool)]
+#         covariance_loss = off_diag.pow(2).sum() / z.size(1)
+
+#         return (
+#             self.lambda_invariance * invariance_loss
+#             + self.lambda_variance * variance_loss
+#             + self.lambda_covariance * covariance_loss
+#         )

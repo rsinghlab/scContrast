@@ -45,7 +45,7 @@ from dataset.preprocessing import scrna_seq_normalization
 from dataset.dataloader import AnnDataDataset
 
 from model.scRNA_AE import scRNASeqAE
-from model.scRNA_E_C import ContrastiveLoss, VICRegLoss, scRNASeqE_VICRegExpander
+from model.scRNA_E_C import ContrastiveLoss, VICRegLoss, scRNASeqE_VICRegExpander, scRNASeqE_VICReg_Contrastive
 from augmentations import *
 
 # -------------------------
@@ -57,7 +57,7 @@ PARAMETERS = {
     "latent_dimension": 128, # Originally 50
     "target_sum": 10000,
     "batch_size": 1024,
-    "num_epochs": 10,
+    "num_epochs": 50,
 }
 
 VERSION = 'v3,5'
@@ -225,7 +225,7 @@ if __name__ == "__main__":
         },
     ]
 
-    final_model = scRNASeqE_VICRegExpander(
+    final_model = scRNASeqE_VICReg_Contrastive(
         PARAMETERS,
         cell_type_mu_sigma=cell_type_mu_sigma,
         global_mu_sigma=global_mu_sigma,

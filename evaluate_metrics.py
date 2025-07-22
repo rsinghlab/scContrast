@@ -8,102 +8,108 @@ import scib.metrics as scib_me
 import tempfile
 from statistics import mean, harmonic_mean
 
-## Choose which AnnData object to load
+VERSION = 'v3,5'
 
+## Choose which AnnData object to load
 print("Loading AnnData object...")
 with open(f"soft_similarity_experiments/adata_test_for_metrics_1.pkl", "rb") as f:
     adata = pickle.load(f)
+with open(f"data/pickled/tabula_muris/tm_adata_test_length_normalized_{VERSION}.pkl", "rb") as f:
+    adata_pre = pickle.load(f)
 print("Done loading AnnData.")
 
-# Load the raised power
-# print("Loading AnnData object...")
-# raised_power = 1
-# with open(f"VICRegExpander_experiments/adata_test_for_metrics_{raised_power}.pkl", "rb") as f: # location of pickled file
-#     adata = pickle.load(f)
-# print("Done loading AnnData.")
-
-# # Load the softmax
-# print("Loading AnnData object...")
-# with open(f"adata_test_for_metrics_softmax.pkl", "rb") as f:
-#     adata = pickle.load(f)
-# print("Done loading AnnData.")
-
-
+print("Pre shape:", adata_pre.shape)
+print("Post shape:", adata.shape)
 
 print("Computing neighborhood graph using embedding 'X_emb'...")
 sc.pp.neighbors(adata, use_rep="X_emb")
 print("Done computing neighbors.")
 
-print("Running Leiden clustering with optimal resolution against Celltype...")
-scib_me.cluster_optimal_resolution(
-    adata,
-    label_key="Celltype",
-    cluster_key="cluster",       # where to save the result
-    directed=True,               # default; change to False if using igraph
-    random_state=0               # for reproducibility
-)
-print("Done optimal clustering.")
+# print("Running Leiden clustering with optimal resolution against Celltype...")
+# scib_me.cluster_optimal_resolution(
+#     adata,
+#     label_key="Celltype",
+#     cluster_key="cluster",       # where to save the result
+#     directed=True,               # default; change to False if using igraph
+#     random_state=0               # for reproducibility
+# )
+# print("Done optimal clustering.")
 
 print("Creating temporary directory for LISI...")
 os.environ["LISI_TMP"] = tempfile.mkdtemp(prefix="lisi_")
 print(f"LISI_TMP set to {os.environ['LISI_TMP']}")
 
+# all of the metrics here
+
 metrics = {}
 
-print("Computing NMI cluster/label...")
-metrics["NMI cluster/label"] = scib_me.nmi(adata, cluster_key="cluster", label_key="Celltype")
-print("Done.")
-
-print("Computing ARI cluster/label...")
-metrics["ARI cluster/label"] = scib_me.ari(adata, cluster_key="cluster", label_key="Celltype")
-print("Done.")
-
-print("Computing Label ASW...")
-metrics["Label ASW"] = scib_me.silhouette(adata, label_key="Celltype", embed="X_emb")
-print("Done.")
-
-print("Computing Isolated label F1...")
-metrics["Isolated label F1"] = scib_me.isolated_labels_f1(
-    adata, label_key="Celltype", batch_key="batch", embed="X_emb", cluster_key="cluster")
-print("Done.")
-
-# print("Computing Isolated label silhouette...")
-# metrics["Isolated label silhouette"] = scib_me.isolated_labels_silhouette(adata, label_key="Celltype", embed="X_emb")
+# print("Computing NMI cluster/label...")
+# metrics["NMI cluster/label"] = scib_me.nmi(adata, cluster_key="cluster", label_key="Celltype")
 # print("Done.")
 
-print("Computing Batch ASW...")
-metrics["Batch ASW"] = scib_me.silhouette_batch(adata, batch_key="tech", label_key="Celltype", embed="X_emb")
-print("Done.")
-
-print("Computing PCR batch...")
-metrics["PCR batch"] = 1 - scib_me.pcr(adata, covariate="tech", embed="X_emb")
-print("Done.")
-
-# print("Computing Graph iLISI...")
-# metrics["Graph iLISI"] = scib_me.ilisi_graph(adata, batch_key="tech", type_="embed", use_rep="X_emb")
+# print("Computing ARI cluster/label...")
+# metrics["ARI cluster/label"] = scib_me.ari(adata, cluster_key="cluster", label_key="Celltype")
 # print("Done.")
 
-print("Computing Graph connectivity...")
-metrics["Graph connectivity"] = scib_me.graph_connectivity(adata, label_key="Celltype")
-print("Done.")
-
-# print("Computing Graph cLISI...")
-# metrics["Graph cLISI"] = scib_me.clisi_graph(adata, label_key="Celltype", type_="embed", use_rep="X_emb")
+# print("Computing Silhoutte...")
+# metrics["Silhoutte"] = scib_me.silhouette(adata, label_key="Celltype", embed="X_emb")
 # print("Done.")
 
-# print("Computing HVG conservation...")
-# metrics["HVG conservation"] = scib_me.hvg_overlap_score(adata, batch_key="tech")
+# print("Computing Silhoutte Batch...")
+# metrics["Silhoutte Batch"] = scib_me.silhouette_batch(adata, batch_key="batch", label_key="Celltype", embed="X_emb")
+# print("Done.")
+
+# print("Computing Isolated label F1...")
+# metrics["Isolated label F1"] = scib_me.isolated_labels_f1(
+#     adata, label_key="Celltype", batch_key="batch", embed="X_emb", cluster_key="cluster")
+# print("Done.")
+
+# print("Computing Isolated label asw...")
+# metrics["Isolated label asw"] = scib_me.isolated_labels_asw(adata, label_key="Celltype", batch_key="batch", embed="X_emb")
+# print("Done.")
+
+
+
+
+
+
+
+
+print("Computing lisi...")
+metrics["lisi"] = scib_me.lisi.lisi_graph(adata, label_key="Celltype", batch_key="tech", type_="embed")
+print("Done")
+
+print("Computing Graph iLISI...")
+metrics["Graph iLISI"] = scib_me.ilisi_graph(adata, batch_key="tech", use_rep="X_emb", type_="embed")
+print("Done.")
+
+print("Computing Graph cLISI...")
+metrics["Graph cLISI"] = scib_me.clisi_graph(adata, label_key="Celltype", use_rep="X_emb")
+print("Done.")
+
+
+
+
+
+
+
+
+
+# print("Computing Graph connectivity...")
+# metrics["Graph connectivity"] = scib_me.graph_connectivity(adata, label_key="Celltype")
+# print("Done.")
+
+# print("Computing HVG overlap...")
+# metrics["HVG overlap"] = scib_me.hvg_overlap(adata_pre=adata_pre, adata_post=adata, batch_key="tech")
 # print("Done.")
 
 # print("Computing Cell cycle conservation...")
-# metrics["Cell cycle conservation"] = scib_me.cell_cycle_conservation(adata, batch_key="tech")
+# metrics["Cell cycle conservation"] = scib_me.cell_cycle(adata_pre=adata_pre, adata_post=adata, batch_key="tech")
 # print("Done.")
 
-if "pseudotime" in adata.obs.columns:
-    print("Computing Trajectory conservation...")
-    metrics["Trajectory conservation"] = scib_me.trajectory_conservation(
-        adata, batch_key="tech", pseudotime_key="pseudotime")
-    print("Done.")
+# print("Computing PCR batch...")
+# metrics["PCR batch"] = 1 - scib_me.pcr(adata, covariate="tech", embed="X_emb")
+# print("Done.")
 
 print("\n===== scIB Benchmark Metrics =====")
 for k, v in metrics.items():
@@ -111,15 +117,21 @@ for k, v in metrics.items():
 
 # Compute overall batch, bio, and harmonic mean scores
 batch_metrics = [
-    metrics.get("Batch ASW"),
-    metrics.get("PCR batch")
+    metrics.get("Silhoutte Batch"),  # batch ASW equivalent
+    metrics.get("PCR batch"),
+    metrics.get("kBET"),
+    metrics.get("lisi"),
+    metrics.get("Graph iLISI")
 ]
+
 bio_metrics = [
     metrics.get("NMI cluster/label"),
     metrics.get("ARI cluster/label"),
-    metrics.get("Label ASW"),
+    metrics.get("Silhoutte"),  # label ASW equivalent
     metrics.get("Isolated label F1"),
-    metrics.get("Graph connectivity")
+    metrics.get("Isolated label asw"),
+    metrics.get("Graph connectivity"),
+    metrics.get("Graph cLISI")
 ]
 
 # Remove None values if any metric was not computed
