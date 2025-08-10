@@ -1288,6 +1288,13 @@ class FullSimilarityMatrixLoss(nn.Module):
         # Slice target similarity submatrix for current batch
         G = self.target_similarity[y][:, y]  # [B, B]
 
+        # making sure they match(debugging)
+        for i in range(len(y)):
+            for j in range(len(y)):
+                target_val = self.target_similarity[y[i], y[j]].item()
+                G_val = G[i, j].item()
+                assert abs(target_val - G_val) < 1e-6, f"Mismatch at ({i},{j}): {target_val} != {G_val}"
+
         # Frobenius norm loss
         loss = torch.norm(pred_sim - G, p='fro') ** 2
         return loss

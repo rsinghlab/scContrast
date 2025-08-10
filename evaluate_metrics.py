@@ -25,15 +25,15 @@ print("Computing neighborhood graph using embedding 'X_emb'...")
 sc.pp.neighbors(adata, use_rep="X_emb")
 print("Done computing neighbors.")
 
-# print("Running Leiden clustering with optimal resolution against Celltype...")
-# scib_me.cluster_optimal_resolution(
-#     adata,
-#     label_key="Celltype",
-#     cluster_key="cluster",       # where to save the result
-#     directed=True,               # default; change to False if using igraph
-#     random_state=0               # for reproducibility
-# )
-# print("Done optimal clustering.")
+print("Running Leiden clustering with optimal resolution against Celltype...")
+scib_me.cluster_optimal_resolution(
+    adata,
+    label_key="Celltype",
+    cluster_key="cluster",       # where to save the result
+    directed=True,               # default; change to False if using igraph
+    random_state=0               # for reproducibility
+)
+print("Done optimal clustering.")
 
 print("Creating temporary directory for LISI...")
 os.environ["LISI_TMP"] = tempfile.mkdtemp(prefix="lisi_")
@@ -43,48 +43,29 @@ print(f"LISI_TMP set to {os.environ['LISI_TMP']}")
 
 metrics = {}
 
-# print("Computing NMI cluster/label...")
-# metrics["NMI cluster/label"] = scib_me.nmi(adata, cluster_key="cluster", label_key="Celltype")
-# print("Done.")
-
-# print("Computing ARI cluster/label...")
-# metrics["ARI cluster/label"] = scib_me.ari(adata, cluster_key="cluster", label_key="Celltype")
-# print("Done.")
-
-# print("Computing Silhoutte...")
-# metrics["Silhoutte"] = scib_me.silhouette(adata, label_key="Celltype", embed="X_emb")
-# print("Done.")
-
-# print("Computing Silhoutte Batch...")
-# metrics["Silhoutte Batch"] = scib_me.silhouette_batch(adata, batch_key="batch", label_key="Celltype", embed="X_emb")
-# print("Done.")
-
-# print("Computing Isolated label F1...")
-# metrics["Isolated label F1"] = scib_me.isolated_labels_f1(
-#     adata, label_key="Celltype", batch_key="batch", embed="X_emb", cluster_key="cluster")
-# print("Done.")
-
-# print("Computing Isolated label asw...")
-# metrics["Isolated label asw"] = scib_me.isolated_labels_asw(adata, label_key="Celltype", batch_key="batch", embed="X_emb")
-# print("Done.")
-
-
-
-
-
-
-
-
-print("Computing lisi...")
-metrics["lisi"] = scib_me.lisi.lisi_graph(adata, label_key="Celltype", batch_key="tech", type_="embed")
-print("Done")
-
-print("Computing Graph iLISI...")
-metrics["Graph iLISI"] = scib_me.ilisi_graph(adata, batch_key="tech", use_rep="X_emb", type_="embed")
+print("Computing NMI cluster/label...")
+metrics["NMI cluster/label"] = scib_me.nmi(adata, cluster_key="cluster", label_key="Celltype")
 print("Done.")
 
-print("Computing Graph cLISI...")
-metrics["Graph cLISI"] = scib_me.clisi_graph(adata, label_key="Celltype", use_rep="X_emb")
+print("Computing ARI cluster/label...")
+metrics["ARI cluster/label"] = scib_me.ari(adata, cluster_key="cluster", label_key="Celltype")
+print("Done.")
+
+print("Computing Silhoutte...")
+metrics["Silhoutte"] = scib_me.silhouette(adata, label_key="Celltype", embed="X_emb")
+print("Done.")
+
+print("Computing Silhoutte Batch...")
+metrics["Silhoutte Batch"] = scib_me.silhouette_batch(adata, batch_key="batch", label_key="Celltype", embed="X_emb")
+print("Done.")
+
+print("Computing Isolated label F1...")
+metrics["Isolated label F1"] = scib_me.isolated_labels_f1(
+    adata, label_key="Celltype", batch_key="batch", embed="X_emb", cluster_key="cluster")
+print("Done.")
+
+print("Computing Isolated label asw...")
+metrics["Isolated label asw"] = scib_me.isolated_labels_asw(adata, label_key="Celltype", batch_key="batch", embed="X_emb")
 print("Done.")
 
 
@@ -94,22 +75,41 @@ print("Done.")
 
 
 
+# print("Computing lisi...")
+# metrics["lisi"] = scib_me.lisi.lisi_graph(adata, label_key="Celltype", batch_key="tech", type_="embed")
+# print("Done")
 
-# print("Computing Graph connectivity...")
-# metrics["Graph connectivity"] = scib_me.graph_connectivity(adata, label_key="Celltype")
+# print("Computing Graph iLISI...")
+# metrics["Graph iLISI"] = scib_me.ilisi_graph(adata, batch_key="tech", use_rep="X_emb", type_="embed")
 # print("Done.")
+
+# print("Computing Graph cLISI...")
+# metrics["Graph cLISI"] = scib_me.clisi_graph(adata, label_key="Celltype", use_rep="X_emb")
+# print("Done.")
+
+
+
+
+
+
+
+
+
+print("Computing Graph connectivity...")
+metrics["Graph connectivity"] = scib_me.graph_connectivity(adata, label_key="Celltype")
+print("Done.")
 
 # print("Computing HVG overlap...")
 # metrics["HVG overlap"] = scib_me.hvg_overlap(adata_pre=adata_pre, adata_post=adata, batch_key="tech")
 # print("Done.")
 
-# print("Computing Cell cycle conservation...")
-# metrics["Cell cycle conservation"] = scib_me.cell_cycle(adata_pre=adata_pre, adata_post=adata, batch_key="tech")
-# print("Done.")
+print("Computing Cell cycle conservation...")
+metrics["Cell cycle conservation"] = scib_me.cell_cycle(adata_pre=adata_pre, adata_post=adata, batch_key="tech")
+print("Done.")
 
-# print("Computing PCR batch...")
-# metrics["PCR batch"] = 1 - scib_me.pcr(adata, covariate="tech", embed="X_emb")
-# print("Done.")
+print("Computing PCR batch...")
+metrics["PCR batch"] = 1 - scib_me.pcr(adata, covariate="tech", embed="X_emb")
+print("Done.")
 
 print("\n===== scIB Benchmark Metrics =====")
 for k, v in metrics.items():
