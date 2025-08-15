@@ -1264,89 +1264,85 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class FullSimilarityMatrixLoss(nn.Module):
-    def __init__(self, target_similarity):
-        """
-        target_similarity: global similarity matrix between cell types
-        """
-        super().__init__()
-        if isinstance(target_similarity, np.ndarray):
-            target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
-        self.register_buffer("target_similarity", target_similarity)
-
-    def forward(self, Z, y):
-        """
-        Z: [B, D] - embeddings for a batch of cells
-        y: [B] - integer cell type codes or indices (used to extract the correct submatrix from target_similarity)
-        """
-        # Normalize embeddings
-        Z = F.normalize(Z, dim=1)
-
-        # Compute predicted similarity matrix
-        pred_sim = Z @ Z.T  # [B, B]
-
-        # Slice target similarity submatrix for current batch
-        G = self.target_similarity[y][:, y]  # [B, B]
-
-        # making sure they match(debugging)
-        for i in range(len(y)):
-            for j in range(len(y)):
-                target_val = self.target_similarity[y[i], y[j]].item()
-                G_val = G[i, j].item()
-                assert abs(target_val - G_val) < 1e-6, f"Mismatch at ({i},{j}): {target_val} != {G_val}"
-
-        # Frobenius norm loss
-        loss = torch.norm(pred_sim - G, p='fro') ** 2
-        return loss
-
-
-# import torch
-# import torch.nn.functional as F
-# from torch import nn
-
 # class FullSimilarityMatrixLoss(nn.Module):
-#     def __init__(
-#         self,
-#         target_similarity: torch.Tensor,
-#         lambda_invariance: float = 1.0,
-#         lambda_variance: float = 1.0,
-#         lambda_covariance: float = 1.0,
-#         eps: float = 1e-4,
-#     ):
+#     def __init__(self, target_similarity):
+#         """
+#         target_similarity: global similarity matrix between cell types
+#         """
 #         super().__init__()
-#         if isinstance(target_similarity, torch.Tensor):
-#             self.target_similarity = target_similarity
-#         else:
-#             self.target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
-#         self.lambda_invariance = lambda_invariance
-#         self.lambda_variance = lambda_variance
-#         self.lambda_covariance = lambda_covariance
-#         self.eps = eps
+#         if isinstance(target_similarity, np.ndarray):
+#             target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
+#         self.register_buffer("target_similarity", target_similarity)
 
-#     def forward(self, z: torch.Tensor, y: torch.Tensor):
-#         # z: embeddings of shape (2Nb, d)
-#         z = F.normalize(z, dim=1)
-#         sim_matrix = z @ z.T
+#     def forward(self, Z, y):
+#         """
+#         Z: [B, D] - embeddings for a batch of cells
+#         y: [B] - integer cell type codes or indices (used to extract the correct submatrix from target_similarity)
+#         """
+#         # Normalize embeddings
+#         Z = F.normalize(Z, dim=1)
 
-#         y_cpu = y.detach().cpu()
-#         target = self.target_similarity[y_cpu][:, y_cpu].to(z.device)
+#         # Compute predicted similarity matrix
+#         pred_sim = Z @ Z.T  # [B, B]
 
-#         # ——— invariance term (match full sim‐matrix to graph) ———
-#         invariance_loss = F.mse_loss(sim_matrix, target)
+#         # Slice target similarity submatrix for current batch
+#         G = self.target_similarity[y][:, y]  # [B, B]
 
-#         # ——— variance term ———
-#         # ensure each embedding dimension has std ≥ 1
-#         std = torch.sqrt(z.var(dim=0) + self.eps)
-#         variance_loss = torch.mean(F.relu(1.0 - std))
+#         # # making sure they match(debugging)
+#         # for i in range(len(y)):
+#         #     for j in range(len(y)):
+#         #         target_val = self.target_similarity[y[i], y[j]].item()
+#         #         G_val = G[i, j].item()
+#         #         assert abs(target_val - G_val) < 1e-6, f"Mismatch at ({i},{j}): {target_val} != {G_val}"
 
-#         # ——— covariance term ———
-#         z_centered = z - z.mean(dim=0)
-#         cov = (z_centered.T @ z_centered) / (z.size(0) - 1)
-#         off_diag = cov.flatten()[~torch.eye(cov.size(0), device=cov.device, dtype=torch.bool)]
-#         covariance_loss = off_diag.pow(2).sum() / z.size(1)
+#         # Frobenius norm loss
+#         loss = torch.norm(pred_sim - G, p='fro') ** 2
+#         return loss
 
-#         return (
-#             self.lambda_invariance * invariance_loss
-#             + self.lambda_variance * variance_loss
-#             + self.lambda_covariance * covariance_loss
-#         )
+
+
+class FullSimilarityMatrixLoss(nn.Module):
+    def __init__(
+        self,
+        target_similarity: torch.Tensor,
+        lambda_invariance: float = 1.0,
+        lambda_variance: float = 1.0,
+        lambda_covariance: float = 1.0,
+        eps: float = 1e-4,
+    ):
+        super().__init__()
+        if isinstance(target_similarity, torch.Tensor):
+            self.target_similarity = target_similarity
+        else:
+            self.target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
+
+        self.lambda_invariance = lambda_invariance
+        self.lambda_variance = lambda_variance
+        self.lambda_covariance = lambda_covariance
+        self.eps = eps
+
+    def forward(self, z: torch.Tensor, y: torch.Tensor):
+        # z is the raw embeddings, has shape (batch_size, d)
+        batch_size, num_features = z.shape
+
+        # invariance term on normalized embeddings
+        z_normalized = F.normalize(z, dim=1)
+        sim_matrix = z_normalized @ z_normalized.T
+
+        # build the batch-specific target similarity matrix
+        y_cpu = y.detach().cpu()
+        target = self.target_similarity[y_cpu][:, y_cpu].to(z.device)
+        invariance_loss = F.mse_loss(sim_matrix, target)
+
+        # variance term on raw embeddings
+        std = torch.sqrt(z.var(dim=0) + self.eps)
+        variance_loss = torch.mean(F.relu(1.0 - std))
+
+        # covariance term on raw embeddings
+        z_centered = z - z.mean(dim=0)
+        cov = (z_centered.T @ z_centered) / (batch_size - 1)
+        covariance_loss = (cov.fill_diagonal_(0)).pow(2).sum() / num_features # sum the squared offdiagonal elements
+
+        return (self.lambda_invariance * invariance_loss +
+                self.lambda_variance * variance_loss +
+                self.lambda_covariance * covariance_loss)

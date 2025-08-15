@@ -56,7 +56,7 @@ PARAMETERS = {
     "num_genes": 18244,
     "latent_dimension": 128, # Originally 50
     "target_sum": 10000,
-    "batch_size": 1024,
+    "batch_size": 8192,
     "num_epochs": 50,
 }
 
@@ -152,13 +152,18 @@ if __name__ == "__main__":
         tm_dataset_train,
         batch_size=PARAMETERS["batch_size"],
         shuffle=True,  # Typically shuffle the training data
+        num_workers=1
     )
     val_dataloader = DataLoader(
         tm_dataset_val,
         batch_size=PARAMETERS["batch_size"],
         shuffle=False,
-        drop_last=False
+        drop_last=False,
+        num_workers=1
     )
+    print("right after creation:")
+    print("train dataloader size: ", len(train_dataloader))
+    print("validation dataloader size: ", len(val_dataloader))
 
     precomputed_dir = data_dir / 'pickled' / 'tabula_muris' / 'precomputed'
     precomputed_gene_clusters_path =  precomputed_dir / f'tm_dataset_train_tissues_length_normalized_{VERSION}_precomputed_gene_clusters.pkl'
@@ -278,6 +283,10 @@ if __name__ == "__main__":
         # callbacks=[early_stop, checkpoint_callback],
         callbacks=[checkpoint_callback],
     )
+
+    print("right before fitting the model:")
+    print("train dataloader size: ", len(train_dataloader))
+    print("validation dataloader size: ", len(val_dataloader))
     final_trainer.fit(final_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
     best_checkpoint_path = checkpoint_callback.best_model_path
@@ -304,11 +313,11 @@ if __name__ == "__main__":
     mpl.rcParams['figure.dpi'] = 600
 
     # output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={saved_epoch}_final-loss={saved_loss:.4f}"
-    output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={final_epoch}_final-loss={final_loss:.4f}"
+    output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={final_epoch}_final-loss={final_loss:.4f}_date=8_13_25"
     os.makedirs(output_folder, exist_ok=True)
     # os.makedirs(f'{output_folder}/train', exist_ok=True)
     os.makedirs(f'{output_folder}/test', exist_ok=True)
-
+    
     print(f'Visualizing results; saving into {output_folder}')
     '''
     # Convert to numpy and visualize with UMAP
@@ -349,6 +358,7 @@ if __name__ == "__main__":
     fig.savefig(f"{output_folder}/train/celltype_tech_availability.png")
     plt.close(fig)
     '''
+
     with torch.no_grad():
         latent_representations_test = final_model.encoder(
             torch.tensor(tm_adata_test.X.toarray(), dtype=torch.float32)
@@ -486,17 +496,11 @@ if __name__ == "__main__":
     fig.savefig(f"{output_folder}/test/method_Pancreas.png")
     plt.close(fig)
 
+
+
     # Save the model for metric evaluation
     tm_adata_test.obsm["X_emb"] = latent_np_test
 
-    # with open(f"adata_test_for_metrics_deepseek.pkl", "wb") as f:
-    #     pickle.dump(tm_adata_test, f)
-    # print(f"Saved model for metric evaluation with deepseek.")
-
-    with open(f"adata_test_for_metrics_{raised_power}.pkl", "wb") as f:
+    with open(f"adata_test_for_metrics.pkl", "wb") as f:
         pickle.dump(tm_adata_test, f)
-    print(f"Saved model for metric evaluation with raised_power={raised_power}.")
-
-    # with open(f"adata_test_for_metrics_softmax.pkl", "wb") as f:
-    #     pickle.dump(tm_adata_test, f)
-    # print(f"Saved model for metric evaluation with softmax.")
+    print(f"Saved model for metric evaluation.")
