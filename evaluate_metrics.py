@@ -12,7 +12,7 @@ VERSION = 'v3,5'
 
 ## Choose which AnnData object to load
 print("Loading AnnData object...")
-with open(f"soft_similarity_experiments/adata_test_for_metrics.pkl", "rb") as f:
+with open(f"VICRegExpander_experiments/adata_test_for_metrics.pkl", "rb") as f:
     adata = pickle.load(f)
 with open(f"data/pickled/tabula_muris/tm_adata_test_length_normalized_{VERSION}.pkl", "rb") as f:
     adata_pre = pickle.load(f)

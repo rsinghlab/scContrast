@@ -1208,62 +1208,138 @@ class scRNASeqE_VICReg_Contrastive(pl.LightningModule):
                 aug_out = fn(expression_matrix=aug_out, **fn_kwargs)
         return aug_out
 
+    ## Doesn't actually compare batches against one another, we need two augmentations of two different batches
+    # def training_step(self, batch, batch_idx):
+    #     X, y = batch
+    #     # X = X.to(self.device)
+    #     # y = y.to(self.device)
+
+    #     # Only need one encoding with similarity matrix
+    #     aug = self.augmenter(X, y)
+    #     z = self.forward(aug)
+
+    #     # Compute similarity matrix loss
+    #     loss = self.similarity_loss(z, y)
+
+    #     self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+    #     return loss
+
+
+    ## VICReg as implemented in Meta AI paper
     def training_step(self, batch, batch_idx):
         X, y = batch
-        # X = X.to(self.device)
-        # y = y.to(self.device)
+        x1 = self.augmenter(X, y)  # view 1
+        x2 = self.augmenter(X, y)  # view 2
 
-        # Only need one encoding with similarity matrix
-        aug = self.augmenter(X, y)
-        z = self.forward(aug)
+        z1 = self.forward(x1)   # (N, d)
+        z2 = self.forward(x2)   # (N, d)
 
-        # Compute similarity matrix loss
-        loss = self.similarity_loss(z, y)
+        # Invariance Term
+        N = z1.size(0)
+        Z = torch.cat([z1, z2], dim=0)  # (2N, d)
+        
+        # Calculate cross-view similarity
+        sim_matrix = Z @ Z.T
+        
+        # Target similarity matrix, NOT USING y HERE, maybe because it's too wonky to force it to be the target similarity matrix??
+        G = torch.zeros(2*N, 2*N, device=Z.device)
+        I = torch.eye(N, device=Z.device)
+        G[:N, N:] = I
+        G[N:, :N] = I
+        
+        invariance_loss = ((sim_matrix - G)**2).fill_diagonal_(0).mean()
 
-        self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
-        return loss
+        # Variance
+        std_z1 = torch.sqrt(z1.var(dim=0) + 1e-04)
+        std_z2 = torch.sqrt(z2.var(dim=0) + 1e-04)
+        
+        # Target standard deviation is 1
+        variance_loss = torch.mean(torch.relu(1 - std_z1)) + torch.mean(torch.relu(1 - std_z2))
+        
+        # Covariance Term
+        z1_centered = z1 - z1.mean(dim=0)
+        z2_centered = z2 - z2.mean(dim=0)
+        
+        cov_z1 = (z1_centered.T @ z1_centered) / (N - 1)
+        cov_z2 = (z2_centered.T @ z2_centered) / (N - 1)
+        
+        # Zero out the diagonal, we only care about off-diagonal terms
+        cov_z1.fill_diagonal_(0.)
+        cov_z2.fill_diagonal_(0.)
+        
+        covariance_loss = cov_z1.pow_(2).sum() / z1.size(1) + cov_z2.pow_(2).sum() / z2.size(1)
+
+        # Combine all loss terms
+        # These are hyperparameters to tune
+        lambda_val = 25.0
+        mu_val = 25.0
+        nu_val = 1.0
+        
+        total_loss = lambda_val * invariance_loss + mu_val * variance_loss + nu_val * covariance_loss
+
+        return total_loss
 
     def validation_step(self, batch, batch_idx):
-        # X, y = batch
-        # # X = X.to(self.device)
-        # # y = y.to(self.device)
-
-        # # Augment
-        # aug_0 = self.augmenter(X, y)
-        # aug_1 = self.augmenter(X, y)
-
-        # # Forward pass
-        # z0 = self.forward(aug_0)
-        # z1 = self.forward(aug_1)
-
-        # # VICReg loss
-        # loss = self.vicreg_loss_fn(z0, z1)
-
-        # self.log("val_loss_vicreg", loss.item(), on_step=True, on_epoch=True)
-        # return loss
         X, y = batch
-        # X = X.to(self.device)
-        # y = y.to(self.device)
+        x1 = self.augmenter(X, y)  # view 1
+        x2 = self.augmenter(X, y)  # view 2
 
-        # Only need one encoding with similarity matrix
-        aug = self.augmenter(X, y)
-        z = self.forward(aug)
+        z1 = self.forward(x1)   # (N, d)
+        z2 = self.forward(x2)   # (N, d)
 
-        # Compute similarity matrix loss
-        loss = self.similarity_loss(z, y)
+        # Invariance Term
+        N = z1.size(0)
+        Z = torch.cat([z1, z2], dim=0)  # (2N, d)
+        
+        # Calculate cross-view similarity
+        sim_matrix = Z @ Z.T
+        
+        # Target similarity matrix, NOT USING y HERE, maybe because it's too wonky to force it to be the target similarity matrix??
+        G = torch.zeros(2*N, 2*N, device=Z.device)
+        I = torch.eye(N, device=Z.device)
+        G[:N, N:] = I
+        G[N:, :N] = I
+        
+        invariance_loss = ((sim_matrix - G)**2).fill_diagonal_(0).mean()
 
-        self.log("val_loss_similarity", loss.item(), on_step=True, on_epoch=True)
-        return loss
+        # Variance
+        std_z1 = torch.sqrt(z1.var(dim=0) + 1e-04)
+        std_z2 = torch.sqrt(z2.var(dim=0) + 1e-04)
+        
+        # Target standard deviation is 1
+        variance_loss = torch.mean(torch.relu(1 - std_z1)) + torch.mean(torch.relu(1 - std_z2))
+        
+        # Covariance Term
+        z1_centered = z1 - z1.mean(dim=0)
+        z2_centered = z2 - z2.mean(dim=0)
+        
+        cov_z1 = (z1_centered.T @ z1_centered) / (N - 1)
+        cov_z2 = (z2_centered.T @ z2_centered) / (N - 1)
+        
+        # Zero out the diagonal, we only care about off-diagonal terms
+        cov_z1.fill_diagonal_(0.)
+        cov_z2.fill_diagonal_(0.)
+        
+        covariance_loss = cov_z1.pow_(2).sum() / z1.size(1) + cov_z2.pow_(2).sum() / z2.size(1)
+
+        # Combine all loss terms
+        # These are hyperparameters to tune
+        lambda_val = 25.0
+        mu_val = 25.0
+        nu_val = 1.0
+        
+        total_loss = lambda_val * invariance_loss + mu_val * variance_loss + nu_val * covariance_loss
+        self.log("val_loss_similarity", total_loss.item(), on_step=True, on_epoch=True)
+
+        return total_loss
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters())
 
 
-## similarity matrix loss
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+## VICReg similarity matrix loss
 
+## VICReg as fully described in X-Sample paper(misinterpreted it but this is still a valid loss function)
 # class FullSimilarityMatrixLoss(nn.Module):
 #     def __init__(self, target_similarity):
 #         """
@@ -1300,13 +1376,13 @@ import torch.nn.functional as F
 #         return loss
 
 
-
+## VICReg attempted implmentation(doesn't actually compare batches against each other but is an interesting approach)
 class FullSimilarityMatrixLoss(nn.Module):
     def __init__(
         self,
         target_similarity: torch.Tensor,
-        lambda_invariance: float = 1.0,
-        lambda_variance: float = 1.0,
+        lambda_invariance: float = 25.0,
+        lambda_variance: float = 25.0,
         lambda_covariance: float = 1.0,
         eps: float = 1e-4,
     ):
@@ -1346,3 +1422,199 @@ class FullSimilarityMatrixLoss(nn.Module):
         return (self.lambda_invariance * invariance_loss +
                 self.lambda_variance * variance_loss +
                 self.lambda_covariance * covariance_loss)
+
+
+
+
+
+
+
+
+
+
+class scRNASeqE_XCLR_Contrastive(pl.LightningModule):
+    def __init__(self, PARAMETERS, 
+                 cell_type_mu_sigma, global_mu_sigma, 
+                 cell_type_msg_mu_sigma, cell_type_lsg_mu_sigma, 
+                 most_significant_genes_dict, least_significant_genes_dict,
+                 gene_networks, gene_names, code_to_celltype, celltype_to_code, 
+                 gene_name_to_index, index_to_gene_name, gene_dispersions,
+                 sim_weight=25.0,
+                 var_weight=25.0,
+                 cov_weight=1.0,
+                 std_target=1.0,
+                 dropout_rate_DO=0.5,
+                 dropout_rate_gSS=0.5,
+                 sigma_fill=0.1,
+                 eps=1e-4,
+                 augmentations_pipeline=[],
+                 similarity_matrix=None):
+        """
+        Replace or adjust default hyperparameters to your liking.
+        """
+        super(scRNASeqE_XCLR_Contrastive, self).__init__()
+        self.save_hyperparameters(ignore=['augmentations_pipeline'])
+        self.PARAMETERS = PARAMETERS
+
+        # Define your encoder and projector
+        self.encoder = scRNASeqEncoder(PARAMETERS)
+        self.projector = scRNASeqProjectionHeadExpander(PARAMETERS)
+
+        ## using similarity loss now!
+        self.similarity_loss = XCLRSimilarityMatrixLoss(target_similarity=similarity_matrix)
+
+
+
+
+        # Assign precomputed variables (used in augmentations)
+        self.cell_type_mu_sigma = cell_type_mu_sigma
+        self.global_mu_sigma = global_mu_sigma
+        self.cell_type_msg_mu_sigma = cell_type_msg_mu_sigma
+        self.cell_type_lsg_mu_sigma = cell_type_lsg_mu_sigma
+        self.most_significant_genes_dict = most_significant_genes_dict
+        self.least_significant_genes_dict = least_significant_genes_dict
+        self.gene_networks = gene_networks
+        self.gene_names = gene_names
+        self.code_to_celltype = code_to_celltype
+        self.celltype_to_code = celltype_to_code
+        self.gene_name_to_index = gene_name_to_index
+        self.index_to_gene_name = index_to_gene_name
+        self.gene_dispersions = gene_dispersions
+
+        self.dropout_rate_DO = dropout_rate_DO
+        self.dropout_rate_gSS = dropout_rate_gSS
+        self.sigma_fill = sigma_fill
+        self.augmentations_pipeline = augmentations_pipeline
+
+        self.augmentations_used = []
+        for step in self.augmentations_pipeline:
+            # global augmentations_used
+            short_name = AUGMENTATION_SHORT_NAMES[step['fn']]
+            self.augmentations_used.append(short_name)
+
+    def forward(self, X):
+        # X -> encoder -> projector -> embeddings (z)
+        latent = self.encoder(X)
+        z = self.projector(latent)
+        return z
+
+    def augmenter(self, X, y):
+        """
+        Applies a series of augmentations from self.augmentations_pipeline to X.
+        y are cell types, used if augmentation function needs them.
+        """
+        aug_out = X
+        for step in self.augmentations_pipeline:
+            fn = step['fn']
+            needs_cell_types = step.get('needs_cell_types', False)
+            kwargs_config = step.get('kwargs', {})
+
+            if callable(kwargs_config): # This will handle augmentations with lambda kwargs; i.e. those that rely on model's arguments
+                fn_kwargs = kwargs_config(self)
+            else:
+                fn_kwargs = kwargs_config
+            
+            if needs_cell_types:
+                aug_out = fn(expression_matrix=aug_out, cell_types=y, **fn_kwargs)
+            else:
+                aug_out = fn(expression_matrix=aug_out, **fn_kwargs)
+        return aug_out
+
+    def training_step(self, batch, batch_idx):
+        X, y = batch
+        x1 = self.augmenter(X, y)  # view 1
+        x2 = self.augmenter(X, y)  # view 2
+
+        z1 = self.forward(x1)   # (N, d)
+        z2 = self.forward(x2)   # (N, d)
+
+        N = z1.size(0)
+        Z = torch.cat([z1, z2], dim=0)  # (2N, d)
+
+        # Compute similarity matrix loss
+        loss = self.similarity_loss(Z, N, y)
+
+        self.log("train_loss_similarity", loss.item(), on_step=True, on_epoch=True)
+        return loss
+
+
+    def validation_step(self, batch, batch_idx):
+        X, y = batch
+
+        x1 = self.augmenter(X, y)  # view 1
+        x2 = self.augmenter(X, y)  # view 2
+
+        z1 = self.forward(x1)   # (N, d)
+        z2 = self.forward(x2)   # (N, d)
+
+        N = z1.size(0)
+        Z = torch.cat([z1, z2], dim=0)   # (2N, d)
+
+        # compute similarity matrix loss
+        loss = self.similarity_loss(Z, N, y)
+
+        self.log("val_loss_similarity", loss.item(), on_step=False, on_epoch=True)
+        return loss
+
+    def configure_optimizers(self):
+        return torch.optim.AdamW(self.parameters())
+    
+class XCLRSimilarityMatrixLoss(nn.Module):
+    def __init__(
+        self,
+        target_similarity: torch.Tensor,
+        tau: float = 0.5,
+        taus: float = 0.1,
+    ):
+        super().__init__()
+        if isinstance(target_similarity, torch.Tensor):
+            self.target_similarity = target_similarity
+        else:
+            self.target_similarity = torch.tensor(target_similarity, dtype=torch.float32)
+
+        self.tau = tau
+        self.taus = taus
+
+    # Z has all representation vectors, N is batch size
+    def forward(self, Z: torch.Tensor, N: torch.Tensor, y: torch.Tensor):
+        ## getting the predicted similarity matrix
+        z_normalized = F.normalize(Z, p=2, dim=1)
+        sim_matrix = torch.matmul(z_normalized, z_normalized.t())       # (2N, 2N)
+        scaled_sim_matrix = sim_matrix / self.tau
+        numerator = torch.exp(scaled_sim_matrix)
+
+        # mask needed to calculate denominator
+        mask = ~torch.eye(2 * N, dtype=torch.bool, device=Z.device)
+        denominator = torch.sum(
+            numerator.masked_fill(~mask, 0), # zero out diagonal elements
+            dim=1,
+            keepdim=True # keep dimension for broadcasting
+        )
+
+        # predicted sim matrix is the division of numerator and denominator
+        pred_sim_matrix = numerator / denominator
+        pred_sim_matrix = pred_sim_matrix.fill_diagonal_(0) # don't use diagonals in calculation
+        
+        ## load in the target similarity matrix, which was computed via cosine similarity, and change it to XCLR
+        G = self.target_similarity
+        y_cpu = y.detach().cpu()
+        s_matrix = G[y_cpu][:, y_cpu].to(Z.device)      # (N, N)
+
+        # expand the matrix from (N, N) to (2N, 2N)
+        expanded_s = torch.zeros(2*N, 2*N, device=Z.device)
+        expanded_s[:N, N:] = s_matrix
+        expanded_s[N:, :N] = s_matrix
+
+        s_numerator = torch.exp(expanded_s / self.taus)
+        s_denominator = torch.sum(s_numerator, dim=1, keepdim=True)
+        s = s_numerator / s_denominator
+        s = s.fill_diagonal_(0) # ensure target has 0 on diagonal too
+
+        ## need to compute loss w cross entropy
+        # add small epsilon (1e-9) for numerical stability to avoid log(0)
+        print("s shape: ", s.shape)
+        print("pred shape: ", pred_sim_matrix.shape)
+        cross_entropy_loss = torch.sum(-s * torch.log(pred_sim_matrix + 1e-9))
+        
+        loss = (1.0 / (2.0 * N)) * cross_entropy_loss
+        return loss

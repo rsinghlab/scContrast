@@ -45,7 +45,7 @@ from dataset.preprocessing import scrna_seq_normalization
 from dataset.dataloader import AnnDataDataset
 
 from model.scRNA_AE import scRNASeqAE
-from model.scRNA_E_C import ContrastiveLoss, VICRegLoss, scRNASeqE_VICRegExpander, scRNASeqE_VICReg_Contrastive
+from model.scRNA_E_C import ContrastiveLoss, VICRegLoss, scRNASeqE_VICRegExpander, scRNASeqE_VICReg_Contrastive, scRNASeqE_XCLR_Contrastive
 from augmentations import *
 
 # -------------------------
@@ -61,7 +61,6 @@ PARAMETERS = {
 }
 
 VERSION = 'v3,5'
-raised_power = 1
 
 num_genes = PARAMETERS["num_genes"]
 
@@ -85,10 +84,7 @@ def load_tabula_muris_data():
     tm_adata_train_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_train_length_normalized_{VERSION}.pkl"
     tm_adata_test_path = data_dir / "pickled" / "tabula_muris" / f"tm_adata_test_length_normalized_{VERSION}.pkl"
     
-    ## similarity matrix path, adjust if you want to use a different power
-    # similarity_matrix_path = similarity_dir / f"similarity_matrix_deepseek.pkl"
-    # similarity_matrix_path = data_dir / "pickled" / "tabula_muris" / f"similarity_matrix_{raised_power}_{VERSION}.pkl"
-    # similarity_matrix_path = data_dir / "pickled" / "tabula_muris" / f"similarity_matrix_softmax_{VERSION}.pkl"
+    ## similarity matrix path
     similarity_matrix_path = similarity_dir / f"similarity_matrix_biogpt.pkl"
 
     with open(tm_dataset_path, "rb") as f:
@@ -230,7 +226,7 @@ if __name__ == "__main__":
         },
     ]
 
-    final_model = scRNASeqE_VICReg_Contrastive(
+    final_model = scRNASeqE_XCLR_Contrastive(
         PARAMETERS,
         cell_type_mu_sigma=cell_type_mu_sigma,
         global_mu_sigma=global_mu_sigma,
@@ -313,7 +309,7 @@ if __name__ == "__main__":
     mpl.rcParams['figure.dpi'] = 600
 
     # output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={saved_epoch}_final-loss={saved_loss:.4f}"
-    output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={final_epoch}_final-loss={final_loss:.4f}_date=8_13_25"
+    output_folder = f"figures/{VERSION}/{experiment_name}_{augmentations_used_str}_epoch={final_epoch}_final-loss={final_loss:.4f}_date=8_17_25"
     os.makedirs(output_folder, exist_ok=True)
     # os.makedirs(f'{output_folder}/train', exist_ok=True)
     os.makedirs(f'{output_folder}/test', exist_ok=True)
