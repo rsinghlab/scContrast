@@ -204,6 +204,6 @@ if __name__ == "__main__":
 
     # === Save for SCIB metrics ===
     tm_adata_test.obsm['X_emb'] = tm_adata_test.obsm['X_latent']
-    with open("adata_test_for_metrics_1.pkl", "wb") as f:
+    with open("adata_test_for_metrics.pkl", "wb") as f:
         pickle.dump(tm_adata_test, f)
-    print("Saved AnnData object for SCIB metrics to: adata_test_for_metrics_1.pkl")
+    print("Saved AnnData object for SCIB metrics to: adata_test_for_metrics.pkl")
